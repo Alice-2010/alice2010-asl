@@ -4,7 +4,6 @@
 - Auto start
     - When entering the Round Hall from the main menu
 - Auto split
-    - When entering a different map
     - Picking up a chess piece
     - Completing an optional achievement (chests, roses, statues etc)
     - Completing a story achievement (absolem, salazen potion, armour etc)
@@ -24,7 +23,6 @@
 - Auto start
     - When entering the Round Hall from the main menu
 - Auto split
-    - When entering a different map
     - Picking up a chess piece
     - Completing an optional achievement (chests, roses, statues etc)
     - Completing a story achievement (absolem, salazen potion, armour etc)
