@@ -49,6 +49,10 @@ startup
 
     // Story
     settings.Add("garden", true, "Strange Garden");
+    settings.Add("bandersnatch0", false, "Start of the Bandersnatch fight", "garden");
+    settings.Add("bandersnatch1", false, "End of Bandersnatch Phase 1", "garden");
+    settings.Add("bandersnatch2", false, "End of Bandersnatch Phase 2", "garden");
+    settings.Add("bandersnatch3", true, "End of Bandersnatch Phase 3 (End of fight)", "garden");
 
     settings.Add("woods", true, "Tulgey Woods");
 
@@ -245,6 +249,7 @@ init
         // TODO: UPDATE POINTERS
         vars.gameTime = new MemoryWatcher<float>(new DeepPointer("Alice.exe", 0x45CF1C, 0x4C, 0x44, 0x10));
         vars.map = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x45CF1C, 0x4C, 0x2BC));
+        vars.mapSector = new MemoryWatcher<uint>(new DeepPointer("Alice.exe", 0x45CF1C, 0x4C, 0x18, 0x18));
         // vars.charID = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x44B8A8, 0x90, 0x54, 0x180, 0x13C));
         vars.playing = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x45CF1C, 0x3C, 0xC, 0x0, 0x4, 0x10C, 0x0, 0xC));
 
@@ -296,6 +301,8 @@ init
         // vars.backstab = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x44B8A8, 0x34, 0x44, 0x54, 0x3C8, 0x1C));
 
         // Bosses
+        // Bandersnatch health from UI values
+        vars.bandersnatchHealth = new MemoryWatcher<uint>(new DeepPointer("Alice.exe", 0x45CF1C, 0x44, 0x54, 0x15C, 0x1C));
         // Stayne is 'enemy group -> enemy 1' (enemy 1 is 0x58 offset)
         vars.stayneHealth = new MemoryWatcher<float>(new DeepPointer("Alice.exe", 0x45CF1C, 0x4C, 0x4, 0x58, 0x3D0));
     }
@@ -305,6 +312,12 @@ start
 {
     if (settings["boss_level"])
     {
+        if (vars.GetInt(vars.map.Current) == 20 && vars.GetUint(vars.mapSector.Current) == 3 && vars.GetInt(vars.playing.Current) == 1 && vars.GetInt(vars.playing.Old) == 4 && vars.GetUint(vars.bandersnatchHealth.Current) == 3)
+        {
+            vars.splitsDone.Add("bandersnatch0");
+            return true;
+        }
+
         // check stayne
         if (vars.GetInt(vars.map.Current) == 85 && vars.GetInt(vars.playing.Current) == 1 && vars.GetInt(vars.playing.Old) == 4 &&
         vars.GetFloat(vars.stayneHealth.Current) == 1500)
@@ -315,7 +328,6 @@ start
     }
     else
     {
-        print("not boss level");
         // if (vars.GetUint(vars.roundHall.Old) == 0 && vars.GetUint(vars.roundHall.Current) == 1 && vars.GetInt(vars.map.Current) == 10)
         // {
         //     vars.achievementsDone.Add("round_hall");
@@ -328,15 +340,13 @@ update
 {
     vars.gameTime.Update(game);
     vars.map.Update(game);
+    vars.mapSector.Update(game);
     // vars.charID.Update(game);
     vars.playing.Update(game);
 
     // vars.roundHall.Update(game);
-    // vars.hare.Update(game);
     // vars.findAbsolem.Update(game);
-    // vars.hatter.Update(game);
     // vars.achHareHouse.Update(game);
-    // vars.cat.Update(game);
     // vars.achRq.Update(game);
     // vars.achRqPotion.Update(game);
     // vars.stayne.Update(game);
@@ -379,6 +389,7 @@ update
     // vars.multiplier.Update(game);
     // vars.switchBomb.Update(game);
 
+    vars.bandersnatchHealth.Update(game);
     vars.stayneHealth.Update(game);
 
 
@@ -492,11 +503,26 @@ split
     // garden
     if (vars.GetInt(vars.map.Current) == 20)
     {
-        // if (!vars.splitsDone.Contains("hare") && ((vars.hare.Current == 1 && vars.hare.Old == 0) || (vars.SwapEndianness(vars.hare.Current) == 1 && vars.SwapEndianness(vars.hare.Old) == 0)))
-        // {
-        //     vars.splitsDone.Add("hare");
-        //     return settings["hare"];
-        // }
+        if (!vars.splitsDone.Contains("bandersnatch0") && vars.GetUint(vars.mapSector.Current) == 3 && vars.GetInt(vars.playing.Current) == 1 && vars.GetInt(vars.playing.Old) == 4 && vars.GetUint(vars.bandersnatchHealth.Current) == 3)
+        {
+            return vars.Split("bandersnatch0");
+        }
+
+        if (vars.splitsDone.Contains("bandersnatch0") && !vars.splitsDone.Contains("bandersnatch1") && vars.GetUint(vars.mapSector.Current) == 3 && vars.GetUint(vars.bandersnatchHealth.Current) == 2)
+        {
+            return vars.Split("bandersnatch1");
+        }
+
+        if (vars.splitsDone.Contains("bandersnatch1") && !vars.splitsDone.Contains("bandersnatch2") && vars.GetUint(vars.mapSector.Current) == 3 && vars.GetUint(vars.bandersnatchHealth.Current) == 1)
+        {
+            return vars.Split("bandersnatch2");
+        }
+
+        if (vars.splitsDone.Contains("bandersnatch2") && !vars.splitsDone.Contains("bandersnatch3") && vars.GetUint(vars.mapSector.Current) == 3 && vars.GetUint(vars.bandersnatchHealth.Current) == 1 && vars.GetInt(vars.playing.Current) == 4 && vars.GetInt(vars.playing.Old) == 1)
+        {
+            return vars.Split("bandersnatch3");
+        }
+
         // if (!vars.splitsDone.Contains("find_absolem") && ((vars.findAbsolem.Current == 1 && vars.findAbsolem.Old == 0) || (vars.SwapEndianness(vars.findAbsolem.Current) == 1 && vars.SwapEndianness(vars.findAbsolem.Old) == 0)))
         // {
         //     vars.splitsDone.Add("find_absolem");
