@@ -1,30 +1,21 @@
 # Alice in Wonderland (2010) Autosplitter and Load Remover
 
 ## Features
+- Load Removal (LRT)
+- In-Game Time (IGT) - Should only be used for Full Game runs
 - Auto start
-    - When entering the Round Hall from the main menu
+    - Upon beginning Bandersnatch fight
+    - Upon beginning Stayne Fight
+    - Upon beginning Jabberwocky fight
 - Auto split
-    - Picking up a chess piece
-    - Completing an optional achievement (chests, roses, statues etc)
-    - Completing a story achievement (absolem, salazen potion, armour etc)
+    - Each phase of Bandersnatch fight
+    - Each phase of Stayne fight
+    - Each phase of Jabberwocky fight
 - Auto reset
-    - Upon returning to the main menu
+    - Upon returning to the main menu - Possibly not working, requires testing
 
 ### To Add
 - Support for Dolphin Emulator
+    - Unsure if current SwapEndianess function will work with float values
 - Splits
-    - Find Alice (Strange Garden)
-    - Cabin cake and/or pishsalver
-    - Hightopps Clock
-    - Defeat Jabberwocky
-
-## Changelogs
-### v1.0.0
-- Auto start
-    - When entering the Round Hall from the main menu
-- Auto split
-    - Picking up a chess piece
-    - Completing an optional achievement (chests, roses, statues etc)
-    - Completing a story achievement (absolem, salazen potion, armour etc)
-- Auto reset
-    - Upon returning to the main menu
+    - Story Objective Splits
