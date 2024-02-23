@@ -6,9 +6,11 @@
 - Auto start
     - Upon beginning Bandersnatch fight
     - Upon beginning Stayne Fight
+    - Upon beginning Jabberwocky fight
 - Auto split
     - Each phase of Bandersnatch fight
     - Each phase of Stayne fight
+    - Each phase of Jabberwocky fight
 - Auto reset
     - Upon returning to the main menu - Possibly not working, requires testing
 
@@ -17,4 +19,3 @@
     - Unsure if current SwapEndianess function will work with float values
 - Splits
     - Story Objective Splits
-    - Jabberwocky Boss Splits

@@ -77,7 +77,11 @@ startup
     settings.Add("wq", true, "Marmoreal - White Queen");
 
     settings.Add("frabjous", true, "Frabjous Day");
-    settings.Add("jabberwocky", true, "Kill Jabberwocky", "frabjous");
+    settings.Add("jabberwocky0", true, "Start of the Jabberwocky fight", "frabjous");
+    settings.Add("jabberwocky1", false, "End of Jabberwocky Phase 1", "frabjous");
+    settings.Add("jabberwocky2", false, "End of Jabberwocky Phase 2", "frabjous");
+    settings.Add("jabberwocky3", false, "End of Jabberwocky Phase 3", "frabjous");
+    settings.Add("jabberwocky4", true, "End of Jabberwocky Phase 4 (End of fight)", "frabjous");
 
     settings.Add("achievements", false, "Achievements");
     settings.Add("ach_round_hall", false, "Round Hall", "achievements");
@@ -305,6 +309,8 @@ init
         vars.bandersnatchHealth = new MemoryWatcher<uint>(new DeepPointer("Alice.exe", 0x45CF1C, 0x44, 0x54, 0x15C, 0x1C));
         // Stayne is 'enemy group -> enemy 1' (enemy 1 is 0x58 offset)
         vars.stayneHealth = new MemoryWatcher<float>(new DeepPointer("Alice.exe", 0x45CF1C, 0x4C, 0x4, 0x58, 0x3D0));
+        // Jabberwocky Phase is a CKIntegerCounter inside CKSrvCounter service
+        vars.jabberwockyPhase = new MemoryWatcher<uint>(new DeepPointer("Alice.exe", 0x45CF1C, 0x28, 0x58, 0xC, 0x1C, 0x4));
     }
 }
 
@@ -312,6 +318,7 @@ start
 {
     if (settings["boss_level"])
     {
+        // check bandersnatch
         if (vars.GetInt(vars.map.Current) == 20 && vars.GetUint(vars.mapSector.Current) == 3 && vars.GetInt(vars.playing.Current) == 1 && vars.GetInt(vars.playing.Old) == 4 && vars.GetUint(vars.bandersnatchHealth.Current) == 3)
         {
             vars.splitsDone.Add("bandersnatch0");
@@ -323,6 +330,13 @@ start
         vars.GetFloat(vars.stayneHealth.Current) == 1500)
         {
             vars.splitsDone.Add("stayne0");
+            return true;
+        }
+
+        // check jabberwocky
+        if (vars.GetInt(vars.map.Current) == 100 && vars.GetUint(vars.mapSector.Current) == 2 && vars.GetInt(vars.playing.Current) == 1 && vars.GetInt(vars.playing.Old) == 4 && vars.GetUint(vars.jabberwockyPhase.Current) == 1)
+        {
+            vars.splitsDone.Add("jabberwocky0");
             return true;
         }
     }
@@ -391,13 +405,13 @@ update
 
     vars.bandersnatchHealth.Update(game);
     vars.stayneHealth.Update(game);
+    vars.jabberwockyPhase.Update(game);
 
 
     if (vars.GetInt(vars.map.Current) != vars.GetInt(vars.map.Old))
     {
-        // TODO: Log
-        print("Old map " + vars.GetInt(vars.map.Old));
-        print("New map " + vars.GetInt(vars.map.Current));
+        // TODO: Log function
+        print("Changed map from " + vars.GetInt(vars.map.Old) + " to " + vars.GetInt(vars.map.Current));
     }
 
     // if on main menu, dont run anything else
@@ -411,9 +425,18 @@ update
         return false;
     }
 
+    if (vars.GetUint(vars.mapSector.Current) != vars.GetUint(vars.mapSector.Old))
+    {
+        // TODO: Log function
+        print("Changed sector from " + vars.GetUint(vars.mapSector.Old) + " to " + vars.GetUint(vars.mapSector.Current) + " (map " + vars.GetInt(vars.map.Current) + ")");
+    }
+
     // achievement tracking for 100% runs
     if (settings["achievements"])
     {
+        // TODO: Should these be looped over instead of manually checked?
+        // TODO: Should Alice's Armour be included here? jabberwocky0 will occur at the same time
+
         // if (!vars.achievementsDone.Contains("chests") && 
         //     ((vars.chests.Current == 1 && vars.chests.Old == 0) || (vars.SwapEndianness(vars.chests.Current) == 1 && vars.SwapEndianness(vars.chests.Old) == 0))
         // )
@@ -503,6 +526,12 @@ split
     // garden
     if (vars.GetInt(vars.map.Current) == 20)
     {
+        // if (!vars.splitsDone.Contains("enemy_freeze") && ((vars.enemyFreeze.Current == 1 && vars.enemyFreeze.Old == 0) || (vars.SwapEndianness(vars.enemyFreeze.Current) == 1 && vars.SwapEndianness(vars.enemyFreeze.Old) == 0)))
+        // {
+        //     vars.splitsDone.Add("enemy_freeze");
+        //     return settings["enemy_freeze"];
+        // }
+
         if (!vars.splitsDone.Contains("bandersnatch0") && vars.GetUint(vars.mapSector.Current) == 3 && vars.GetInt(vars.playing.Current) == 1 && vars.GetInt(vars.playing.Old) == 4 && vars.GetUint(vars.bandersnatchHealth.Current) == 3)
         {
             return vars.Split("bandersnatch0");
@@ -528,11 +557,7 @@ split
         //     vars.splitsDone.Add("find_absolem");
         //     return settings["find_absolem"];
         // }
-        // if (!vars.splitsDone.Contains("enemy_freeze") && ((vars.enemyFreeze.Current == 1 && vars.enemyFreeze.Old == 0) || (vars.SwapEndianness(vars.enemyFreeze.Current) == 1 && vars.SwapEndianness(vars.enemyFreeze.Old) == 0)))
-        // {
-        //     vars.splitsDone.Add("enemy_freeze");
-        //     return settings["enemy_freeze"];
-        // }
+
         // if (!vars.splitsDone.Contains("invis") && ((vars.invis.Current == 1 && vars.invis.Old == 0) || (vars.SwapEndianness(vars.invis.Current) == 1 && vars.SwapEndianness(vars.invis.Old) == 0)))
         // {
         //     vars.splitsDone.Add("invis");
@@ -548,11 +573,13 @@ split
         //     vars.splitsDone.Add("mally_sweep");
         //     return settings["mally_sweep"];
         // }
+
         // if (!vars.splitsDone.Contains("hatter_finish") && ((vars.hatterFinish.Current == 1 && vars.hatterFinish.Old == 0) || (vars.SwapEndianness(vars.hatterFinish.Current) == 1 && vars.SwapEndianness(vars.hatterFinish.Old) == 0)))
         // {
         //     vars.splitsDone.Add("hatter_finish");
         //     return settings["hatter_finish"];
         // }
+
         // if (!vars.splitsDone.Contains("mctwisp_combo") && ((vars.mctwispCombo.Current == 1 && vars.mctwispCombo.Old == 0) || (vars.SwapEndianness(vars.mctwispCombo.Current) == 1 && vars.SwapEndianness(vars.mctwispCombo.Old) == 0)))
         // {
         //     vars.splitsDone.Add("mctwisp_combo");
@@ -563,21 +590,18 @@ split
     // hare house
     if (vars.GetInt(vars.map.Current) == 40)
     {
-        // if (!vars.splitsDone.Contains("hatter") && ((vars.hatter.Current == 1 && vars.hatter.Old == 0) || (vars.SwapEndianness(vars.hatter.Current) == 1 && vars.SwapEndianness(vars.hatter.Old) == 0)))
-        // {
-        //     vars.splitsDone.Add("hatter");
-        //     return settings["hatter"];
-        // }
         // if (!vars.splitsDone.Contains("ach_hare_house") && ((vars.achHareHouse.Current == 1 && vars.achHareHouse.Old == 0) || (vars.SwapEndianness(vars.achHareHouse.Current) == 1 && vars.SwapEndianness(vars.achHareHouse.Old) == 0)))
         // {
         //     vars.splitsDone.Add("ach_hare_house");
         //     return settings["ach_hare_house"];
         // }
+
         // if (!vars.splitsDone.Contains("attack_speed") && ((vars.attackSpeed.Current == 1 && vars.attackSpeed.Old == 0) || (vars.SwapEndianness(vars.attackSpeed.Current) == 1 && vars.SwapEndianness(vars.attackSpeed.Old) == 0)))
         // {
         //     vars.splitsDone.Add("attack_speed");
         //     return settings["attack_speed"];
         // }
+
         // if (!vars.splitsDone.Contains("cat_combo") && ((vars.catCombo.Current == 1 && vars.catCombo.Old == 0) || (vars.SwapEndianness(vars.catCombo.Current) == 1 && vars.SwapEndianness(vars.catCombo.Old) == 0)))
         // {
         //     vars.splitsDone.Add("cat_combo");
@@ -603,11 +627,13 @@ split
         //     vars.splitsDone.Add("homing");
         //     return settings["homing"];
         // }
+
         // if (!vars.splitsDone.Contains("back2vortex") && ((vars.back2Vortex.Current == 1 && vars.back2Vortex.Old == 0) || (vars.SwapEndianness(vars.back2Vortex.Current) == 1 && vars.SwapEndianness(vars.back2Vortex.Old) == 0)))
         // {
         //     vars.splitsDone.Add("back2vortex");
         //     return settings["back2vortex"];
         // }
+
         // if (!vars.splitsDone.Contains("up") && ((vars.up.Current == 1 && vars.up.Old == 0) || (vars.SwapEndianness(vars.up.Current) == 1 && vars.SwapEndianness(vars.up.Old) == 0)))
         // {
         //     vars.splitsDone.Add("up");
@@ -623,6 +649,7 @@ split
         //     vars.splitsDone.Add("crush");
         //     return settings["crush"];
         // }
+
         // if (!vars.splitsDone.Contains("extra_life") && ((vars.extraLife.Current == 1 && vars.extraLife.Old == 0) || (vars.SwapEndianness(vars.extraLife.Current) == 1 && vars.SwapEndianness(vars.extraLife.Old) == 0)))
         // {
         //     vars.splitsDone.Add("extra_life");
@@ -633,16 +660,12 @@ split
     // moat
     if (vars.GetInt(vars.map.Current) == 75)
     {
-        // if (!vars.splitsDone.Contains("cat") && ((vars.cat.Current == 1 && vars.cat.Old == 0) || (vars.SwapEndianness(vars.cat.Current) == 1 && vars.SwapEndianness(vars.cat.Old) == 0)))
-        // {
-        //     vars.splitsDone.Add("cat");
-        //     return settings["cat"];
-        // }
         // if (!vars.splitsDone.Contains("switch_bomb") && ((vars.switchBomb.Current == 1 && vars.switchBomb.Old == 0) || (vars.SwapEndianness(vars.switchBomb.Current) == 1 && vars.SwapEndianness(vars.switchBomb.Old) == 0)))
         // {
         //     vars.splitsDone.Add("switch_bomb");
         //     return settings["switch_bomb"];
         // }
+
         // if (!vars.splitsDone.Contains("hatter_sweep") && ((vars.hatterSweep.Current == 1 && vars.hatterSweep.Old == 0) || (vars.SwapEndianness(vars.hatterSweep.Current) == 1 && vars.SwapEndianness(vars.hatterSweep.Old) == 0)))
         // {
         //     vars.splitsDone.Add("hatter_sweep");
@@ -658,16 +681,19 @@ split
         //     vars.splitsDone.Add("ach_rq");
         //     return settings["ach_rq"];
         // }
+
         // if (!vars.splitsDone.Contains("ach_rq_potion") && ((vars.achRqPotion.Current == 1 && vars.achRqPotion.Old == 0) || (vars.SwapEndianness(vars.achRqPotion.Current) == 1 && vars.SwapEndianness(vars.achRqPotion.Old) == 0)))
         // {
         //     vars.splitsDone.Add("ach_rq_potion");
         //     return settings["ach_rq_potion"];
         // }
+
         // if (!vars.splitsDone.Contains("mally_finish") && ((vars.mallyFinish.Current == 1 && vars.mallyFinish.Old == 0) || (vars.SwapEndianness(vars.mallyFinish.Current) == 1 && vars.SwapEndianness(vars.mallyFinish.Old) == 0)))
         // {
         //     vars.splitsDone.Add("mally_finish");
         //     return settings["maly_finish"];
         // }
+
         // if (!vars.splitsDone.Contains("backstab") && ((vars.backstab.Current == 1 && vars.backstab.Old == 0) || (vars.SwapEndianness(vars.backstab.Current) == 1 && vars.SwapEndianness(vars.backstab.Old) == 0)))
         // {
         //     vars.splitsDone.Add("backstab");
@@ -707,6 +733,7 @@ split
         //     vars.splitsDone.Add("visit_wq");
         //     return settings["visit_wq"];
         // }
+
         // if (!vars.splitsDone.Contains("multiplier") && ((vars.multiplier.Current == 1 && vars.multiplier.Old == 0) || (vars.SwapEndianness(vars.multiplier.Current) == 1 && vars.SwapEndianness(vars.multiplier.Old) == 0)))
         // {
         //     vars.splitsDone.Add("multiplier");
@@ -717,12 +744,38 @@ split
     // frabjous
     if (vars.GetInt(vars.map.Current) == 100)
     {
+        // TODO: Should this split be moved to the `update` block?
         // if (!vars.splitsDone.Contains("armour") &&
         //     ((vars.armour.Current == 1 && vars.armour.Old == 0) || (vars.SwapEndianness(vars.armour.Current) == 1 && vars.SwapEndianness(vars.armour.Old) == 0)))
         // {
         //     vars.splitsDone.Add("armour");
         //     return settings["armour"];
         // }
+
+        if (!vars.splitsDone.Contains("jabberwocky0") && vars.GetUint(vars.mapSector.Current) == 2 && vars.GetInt(vars.playing.Current) == 1 && vars.GetInt(vars.playing.Old) == 4 && vars.GetUint(vars.jabberwockyPhase.Current) == 1)
+        {
+            return vars.Split("jabberwocky0");
+        }
+
+        if (!vars.splitsDone.Contains("jabberwocky1") && vars.splitsDone.Contains("jabberwocky0") && vars.GetUint(vars.mapSector.Current) == 2 && vars.GetUint(vars.jabberwockyPhase.Current) == 2)
+        {
+            return vars.Split("jabberwocky1");
+        }
+
+        if (!vars.splitsDone.Contains("jabberwocky2") && vars.splitsDone.Contains("jabberwocky1") && vars.GetUint(vars.mapSector.Current) == 2 && vars.GetUint(vars.jabberwockyPhase.Current) == 3)
+        {
+            return vars.Split("jabberwocky2");
+        }
+
+        if (!vars.splitsDone.Contains("jabberwocky3") && vars.splitsDone.Contains("jabberwocky2") && vars.GetUint(vars.mapSector.Current) == 2 && vars.GetUint(vars.jabberwockyPhase.Current) == 4)
+        {
+            return vars.Split("jabberwocky3");
+        }
+
+        if (!vars.splitsDone.Contains("jabberwocky4") && vars.splitsDone.Contains("jabberwocky3") && vars.GetUint(vars.mapSector.Current) == 2 && vars.GetUint(vars.jabberwockyPhase.Current) == 4 && vars.GetInt(vars.playing.Old) == 1 && vars.GetInt(vars.playing.Current) == 4)
+        {
+            return vars.Split("jabberwocky4");
+        }
     }
 
     // no quest triggered
