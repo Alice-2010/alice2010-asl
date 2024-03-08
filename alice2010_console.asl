@@ -1,7 +1,7 @@
 //========================================================//
 // Alice in Wonderland 2010 AutoSplitter and Load Remover //
 //        Created by https://github.com/DeathHound6       //
-//             Last Updated: 19th February 2024           //
+//             Last Updated: 8th March 2024               //
 //========================================================//
 
 // map - int
@@ -20,39 +20,36 @@
 // 90 - marmoreal
 // 100 - frabjous
 
-// character id - int
-// -1 - menu
-// 0 - hare
-// 1 - cat
-// 2 - mally
-// 3 - hatter
-// 4 - mctwisp
+// audioStatus - int
+// 0 - playing audio
+// 1 - not playing audio
+// 4 - playing prerendered cutscene
 
-// playing - uint?
-// 1 - playing
-// 4 - prerendered cutscene
-// 0 - loading
 
 // NOTE: State blocks won't have any pointers
 // NOTE: Pointers will be stored as MemoryWatchers and DeepPointers
 state("Alice", "Steam") {}
 
-state("Dolphin", "Dolphin Wii NTSC-U") {}
+state("Dolphin", "Dolphin Wii NTSC") {}
 
 state("Dolphin", "Dolphin Wii PAL") {}
 
 startup
 {
     // Utility
-    settings.Add("load_removal", true, "Load Remover");
-    settings.Add("boss_level", false, "Boss Levels");
+    settings.Add("utility", true, "Utility Options");
+    settings.Add("log_file", true, "Debug Log File", "utility");
+    settings.Add("load_removal", true, "Load Remover", "utility");
+    settings.Add("game_time", true, "Show IGT (Game Time)", "utility");
+    settings.Add("boss_level", false, "Autostart Boss Levels", "utility");
 
     // Story
     settings.Add("garden", true, "Strange Garden");
-    settings.Add("bandersnatch0", false, "Start of the Bandersnatch fight", "garden");
-    settings.Add("bandersnatch1", false, "End of Bandersnatch Phase 1", "garden");
-    settings.Add("bandersnatch2", false, "End of Bandersnatch Phase 2", "garden");
-    settings.Add("bandersnatch3", true, "End of Bandersnatch Phase 3 (End of fight)", "garden");
+    settings.Add("bandersnatch", true, "Bandersnatch Boss Fight", "garden");
+    settings.Add("bandersnatch0", false, "Start of the fight", "bandersnatch");
+    settings.Add("bandersnatch1", false, "End of Phase 1", "bandersnatch");
+    settings.Add("bandersnatch2", false, "End of Phase 2", "bandersnatch");
+    settings.Add("bandersnatch3", true, "End of Phase 3 (End of fight)", "bandersnatch");
 
     settings.Add("woods", true, "Tulgey Woods");
 
@@ -69,21 +66,23 @@ startup
     settings.Add("rq", true, "Salazen Grum - Red Queen");
 
     settings.Add("stables", true, "Bandersnatch Stables");
-    settings.Add("stayne0", false, "Start of the Stayne fight", "stables");
-    settings.Add("stayne1", false, "End of Stayne Phase 1", "stables");
-    settings.Add("stayne2", false, "End of Stayne Phase 2", "stables");
-    settings.Add("stayne3", true, "End of Stayne Phase 3 (End of fight)", "stables");
+    settings.Add("stayne", true, "Stayne Boss Fight", "stables");
+    settings.Add("stayne0", false, "Start of the fight", "stayne");
+    settings.Add("stayne1", false, "End of Phase 1", "stayne");
+    settings.Add("stayne2", false, "End of Phase 2", "stayne");
+    settings.Add("stayne3", true, "End of Phase 3 (End of fight)", "stayne");
 
     settings.Add("wq", true, "Marmoreal - White Queen");
 
     settings.Add("frabjous", true, "Frabjous Day");
-    settings.Add("jabberwocky0", true, "Start of the Jabberwocky fight", "frabjous");
-    settings.Add("jabberwocky1", false, "End of Jabberwocky Phase 1", "frabjous");
-    settings.Add("jabberwocky2", false, "End of Jabberwocky Phase 2", "frabjous");
-    settings.Add("jabberwocky3", false, "End of Jabberwocky Phase 3", "frabjous");
-    settings.Add("jabberwocky4", true, "End of Jabberwocky Phase 4 (End of fight)", "frabjous");
+    settings.Add("jabberwocky", true, "Jabberwocky Boss Fight", "frabjous");
+    settings.Add("jabberwocky0", true, "Start of the fight", "jabberwocky");
+    settings.Add("jabberwocky1", false, "End of Phase 1", "jabberwocky");
+    settings.Add("jabberwocky2", false, "End of Phase 2", "jabberwocky");
+    settings.Add("jabberwocky3", false, "End of Phase 3", "jabberwocky");
+    settings.Add("jabberwocky4", true, "End of Phase 4 (End of fight)", "jabberwocky");
 
-    settings.Add("achievements", false, "Achievements");
+    settings.Add("achievements", false, "Story Achievements");
     settings.Add("ach_round_hall", false, "Round Hall", "achievements");
     settings.Add("ach_absolem", false, "Absolem", "achievements");
     settings.Add("ach_hare_house", false, "March Hare House", "achievements");
@@ -123,8 +122,45 @@ startup
 
 init
 {
+    vars.logPath = "alice2010.log";
+    // Log functions taken from https://github.com/VideoGameRoulette/re2-remake-autosplitter
+    Action<string, string> SaveLogs = (filePath, text) => {
+        if (!File.Exists(filePath)) {
+            // Create a new file with the specified name
+            using (StreamWriter sw = File.CreateText(filePath))
+                sw.WriteLine(text);
+        }
+        else {
+            // Append the new line to the file
+            using (StreamWriter sw = File.AppendText(filePath))
+                sw.WriteLine(text);
+        }
+    };
+    Action<string> Log = (text) => {
+        string log = "[Debug";
+        // NOTE: If the timer value > 0, then show the timer info in log
+        if (timer.CurrentPhase != TimerPhase.NotRunning)
+            log += " " + timer.CurrentTime.GameTime.ToString();
+        log += "]: " + text;
+        print(log);
+        if (settings["log_file"])
+            SaveLogs(vars.logPath, log);
+    };
+    vars.Log = Log;
+    Action<string> LogsClear = (filePath) => {
+        if (settings["log_file"])
+        {
+            Log("Clearing Logs");
+            if (File.Exists(filePath))
+                File.WriteAllLines(filePath, new string[0]);
+        }
+    };
+    vars.LogsClear = LogsClear;
+
     if (game.ProcessName == "Dolphin")
     {
+        vars.mem1 = 0x0;
+        vars.mem2 = 0x0;
         foreach (var item in ExtensionMethods.MemoryPages(game, true))
         {
             if (item.Type == MemPageType.MEM_MAPPED && item.AllocationProtect == MemPageProtect.PAGE_READWRITE &&
@@ -138,16 +174,19 @@ init
                 break;
             }
         }
-        print("Mem1 Base Address: 0x" + vars.mem1.ToString("X"));
-        print("Mem2 Base Address: 0x" + vars.mem2.ToString("X"));
-        switch(ExtensionMethods.ReadString(game, (IntPtr)vars.mem1, 6))
+        if (vars.mem1 == (IntPtr)0x0)
+            version = "Unknown";
+        else
         {
-            case "SALP4Q":
-                version = "Dolphin Wii PAL";
-                break;
-            case "SALE4Q":
-                version = "Dolphin Wii NTSC-U";
-                break;
+            switch(ExtensionMethods.ReadString(game, (IntPtr)vars.mem1, 6))
+            {
+                case "SALP4Q":
+                    version = "Dolphin Wii PAL";
+                    break;
+                case "SALE4Q":
+                    version = "Dolphin Wii NTSC";
+                    break;
+            }
         }
     }
     else if (game.ProcessName == "Alice")
@@ -177,52 +216,59 @@ init
     vars.SetTextComponent = SetTextComponent;
 
     Func<string, bool> Split = (splitName) => {
-        print("[" + timer.CurrentTime.ToString() + "] Splitting: " + splitName);
+        if (vars.splitsDone.Contains(splitName))
+            return false;
+        Log("Splitting: " + splitName);
         vars.splitsDone.Add(splitName);
         return settings[splitName];
     };
     vars.Split = Split;
 
-    // SwapEndianess function content taken from https://github.com/LiveSplit/LiveSplit/blob/master/LiveSplit/LiveSplit.Core/Model/NTP.cs
-    // function is required for dolphin since it's BE
     Func<uint, uint> GetUint = (value) => {
-        Func<uint, uint> SwapEndianness = (num) => {
-            return (uint)(((num & 0x000000ff) << 24) +
-                            ((num & 0x0000ff00) << 8) +
-                            ((num & 0x00ff0000) >> 8) +
-                            ((num & 0xff000000) >> 24));
-        };
-        return version == "Steam" ? value : SwapEndianness(value);
+        byte[] bytes = BitConverter.GetBytes(value);
+        if (version != "Steam")
+            Array.Reverse(bytes);
+        return BitConverter.ToUInt32(bytes, 0);
     };
     vars.GetUint = GetUint;
     Func<int, int> GetInt = (value) => {
-        Func<int, int> SwapEndianness = (num) => {
-            return (int)(((num & 0x000000ff) << 24) +
-                            ((num & 0x0000ff00) << 8) +
-                            ((num & 0x00ff0000) >> 8) +
-                            ((num & 0xff000000) >> 24));
-        };
-        return version == "Steam" ? value : SwapEndianness(value);
+        byte[] bytes = BitConverter.GetBytes(value);
+        if (version != "Steam")
+            Array.Reverse(bytes);
+        return BitConverter.ToInt32(bytes, 0);
     };
     vars.GetInt = GetInt;
     Func<float, float> GetFloat = (value) => {
-        Func<float, float> SwapEndianness = (num) => {
-            return (float)((((int)num & 0x000000ff) << 24) +
-                            (((int)num & 0x0000ff00) << 8) +
-                            (((int)num & 0x00ff0000) >> 8) +
-                            (((int)num & 0xff000000) >> 24));
-        };
-        return version == "Steam" ? value : SwapEndianness(value);
+        byte[] bytes = BitConverter.GetBytes(value);
+        if (version != "Steam")
+            Array.Reverse(bytes);
+        return BitConverter.ToSingle(bytes, 0);
     };
     vars.GetFloat = GetFloat;
+
+    Func<int, int[], IntPtr> ReadPointer = (baseAddress, offsets) => {
+        byte[] bytes = new byte[] {};
+        game.ReadBytes((IntPtr)((long)vars.mem1 + (long)baseAddress), 4, out bytes);
+        uint addr = vars.GetUint(BitConverter.ToUInt32(bytes, 0)) - 0x80000000;
+        for (int i = 0; i < offsets.Length - 1; i++) {
+            // TODO: TEST THIS LOOP - IT MAY NOT BE NEEDED
+            game.ReadBytes((IntPtr)((long)vars.mem1 + (long)addr + (long)offsets[i]), 4, out bytes);
+            addr = vars.GetUint(BitConverter.ToUInt32(bytes, 0)) - 0x80000000;
+        }
+        return (IntPtr)((long)vars.mem1 + (long)addr + (long)offsets[offsets.Length - 1]);
+    };
+    vars.ReadPointer = ReadPointer;
 
     if (version.Contains("Wii"))
     {
         // TODO: Possibly split these addresses by PAL/NTSC
         // convert to BE - doing so when reading Current/Old
-        // vars.map = new MemoryWatcher<uint>((IntPtr)((int)vars.mem1 + (int)0x77F8F0));
+        // NOTE CURRENT ADDRESSES ARE FOR PAL REGION
+        vars.gameTime = new MemoryWatcher<float>((IntPtr)((long)vars.mem1 + (long)0x61CAE4));
+        vars.map = new MemoryWatcher<int>((IntPtr)((long)vars.mem1 + (long)0x77F870));
+        vars.mapSector = new MemoryWatcher<int>((IntPtr)((long)vars.mem1 + (long)0x77676C));
         // vars.charID = new MemoryWatcher<uint>((IntPtr)((int)vars.mem1 + (int)0x7DA583));
-        // vars.playing = new MemoryWatcher<uint>();
+        vars.audioStatus = new MemoryWatcher<int>((IntPtr)((long)vars.mem1 + (long)0x7FCA10));
 
         // vars.roundHall = new MemoryWatcher<uint>((IntPtr)((int)vars.mem1 + (int)0x7E2534));
         // vars.findAbsolem = new MemoryWatcher<uint>();
@@ -247,15 +293,26 @@ init
         // vars.roses = new MemoryWatcher<uint>();
         // vars.statues = new MemoryWatcher<uint>();
         // vars.paintings = new MemoryWatcher<uint>();
+
+        // Bosses
+        // Bandersnatch health from UI values
+        vars.bandersnatchHealth = new MemoryWatcher<int>((IntPtr)((long)vars.mem1 + (long)0x7DA380));
+        // Stayne is 'enemy group -> enemy 1'
+        // pointer from enemygroup to health
+        vars.stayneHealthPtr = 0x6F4FE4;
+        vars.stayneHealthPtrOffsets = new int[]{0x4F8};
+        // Jabberwocky Phase is a CKIntegerCounter inside CKSrvCounter service
+        vars.jabberwockyPtr = 0x7762EC;
+        vars.jabberwockyPtrOffsets = new int[] {0x1C, 0x4};
     }
     else if (version == "Steam")
     {
         // TODO: UPDATE POINTERS
         vars.gameTime = new MemoryWatcher<float>(new DeepPointer("Alice.exe", 0x45CF1C, 0x4C, 0x44, 0x10));
         vars.map = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x45CF1C, 0x4C, 0x2BC));
-        vars.mapSector = new MemoryWatcher<uint>(new DeepPointer("Alice.exe", 0x45CF1C, 0x4C, 0x18, 0x18));
+        vars.mapSector = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x45CF1C, 0x4C, 0x18, 0x18));
         // vars.charID = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x44B8A8, 0x90, 0x54, 0x180, 0x13C));
-        vars.playing = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x45CF1C, 0x3C, 0xC, 0x0, 0x4, 0x10C, 0x0, 0xC));
+        vars.audioStatus = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x45CF1C, 0x3C, 0xC, 0x0, 0x4, 0x10C, 0x0, 0xC));
 
         // achievements
         // vars.roundHall = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x44B8A8, 0x34, 0x44, 0x54, 0x264, 0x1C));
@@ -306,7 +363,7 @@ init
 
         // Bosses
         // Bandersnatch health from UI values
-        vars.bandersnatchHealth = new MemoryWatcher<uint>(new DeepPointer("Alice.exe", 0x45CF1C, 0x44, 0x54, 0x15C, 0x1C));
+        vars.bandersnatchHealth = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x45CF1C, 0x44, 0x54, 0x15C, 0x1C));
         // Stayne is 'enemy group -> enemy 1' (enemy 1 is 0x58 offset)
         vars.stayneHealth = new MemoryWatcher<float>(new DeepPointer("Alice.exe", 0x45CF1C, 0x4C, 0x4, 0x58, 0x3D0));
         // Jabberwocky Phase is a CKIntegerCounter inside CKSrvCounter service
@@ -319,24 +376,27 @@ start
     if (settings["boss_level"])
     {
         // check bandersnatch
-        if (vars.GetInt(vars.map.Current) == 20 && vars.GetUint(vars.mapSector.Current) == 3 && vars.GetInt(vars.playing.Current) == 1 && vars.GetInt(vars.playing.Old) == 4 && vars.GetUint(vars.bandersnatchHealth.Current) == 3)
+        if (vars.GetInt(vars.map.Current) == 20 && vars.GetInt(vars.mapSector.Current) == 3 && vars.GetInt(vars.audioStatus.Current) == 1 && vars.GetInt(vars.audioStatus.Old) == 4 && vars.GetInt(vars.bandersnatchHealth.Current) == 3)
         {
-            vars.splitsDone.Add("bandersnatch0");
+            vars.LogsClear(vars.logPath);
+            vars.Split("bandersnatch0");
             return true;
         }
 
         // check stayne
-        if (vars.GetInt(vars.map.Current) == 85 && vars.GetInt(vars.playing.Current) == 1 && vars.GetInt(vars.playing.Old) == 4 &&
-        vars.GetFloat(vars.stayneHealth.Current) == 1500)
+        if (vars.GetInt(vars.map.Current) == 85 && vars.GetInt(vars.audioStatus.Current) == 1 && vars.GetInt(vars.audioStatus.Old) == 4 &&
+        vars.GetFloat(vars.stayneHealth.Current) == 1500f)
         {
-            vars.splitsDone.Add("stayne0");
+            vars.LogsClear(vars.logPath);
+            vars.Split("stayne0");
             return true;
         }
 
         // check jabberwocky
-        if (vars.GetInt(vars.map.Current) == 100 && vars.GetUint(vars.mapSector.Current) == 2 && vars.GetInt(vars.playing.Current) == 1 && vars.GetInt(vars.playing.Old) == 4 && vars.GetUint(vars.jabberwockyPhase.Current) == 1)
+        if (vars.GetInt(vars.map.Current) == 100 && vars.GetInt(vars.mapSector.Current) == 2 && vars.GetInt(vars.audioStatus.Current) == 1 && vars.GetInt(vars.audioStatus.Old) == 4 && vars.GetInt(vars.jabberwockyPhase.Current) == 1)
         {
-            vars.splitsDone.Add("jabberwocky0");
+            vars.LogsClear(vars.logPath);
+            vars.Split("jabberwocky0");
             return true;
         }
     }
@@ -352,11 +412,16 @@ start
 
 update
 {
+    if (version != "Steam") {
+        vars.stayneHealth = new MemoryWatcher<float>(vars.ReadPointer(vars.stayneHealthPtr, vars.stayneHealthPtrOffsets));
+        vars.jabberwockyPhase = new MemoryWatcher<int>(vars.ReadPointer(vars.jabberwockyPtr, vars.jabberwockyPtrOffsets));
+    }
+
     vars.gameTime.Update(game);
     vars.map.Update(game);
     vars.mapSector.Update(game);
     // vars.charID.Update(game);
-    vars.playing.Update(game);
+    vars.audioStatus.Update(game);
 
     // vars.roundHall.Update(game);
     // vars.findAbsolem.Update(game);
@@ -409,33 +474,34 @@ update
 
 
     if (vars.GetInt(vars.map.Current) != vars.GetInt(vars.map.Old))
-    {
-        // TODO: Log function
-        print("Changed map from " + vars.GetInt(vars.map.Old) + " to " + vars.GetInt(vars.map.Current));
-    }
+        vars.Log("Changed map from " + vars.GetInt(vars.map.Old) + " to " + vars.GetInt(vars.map.Current));
 
-    // if on main menu, dont run anything else
-    if (vars.GetInt(vars.map.Current) == 0)
-    {
-        if (vars.GetInt(vars.map.Old) != 0)
-        {
-            // TODO: Log
-            vars.achievementsDone.Clear();
-        }
+    // if on main menu, or entered game from menu, dont run anything else
+    if (vars.GetInt(vars.map.Current) == 0 || vars.GetInt(vars.mapSector.Old) == 0 || vars.GetInt(vars.mapSector.Current) == -1)
         return false;
-    }
 
-    if (vars.GetUint(vars.mapSector.Current) != vars.GetUint(vars.mapSector.Old))
-    {
-        // TODO: Log function
-        print("Changed sector from " + vars.GetUint(vars.mapSector.Old) + " to " + vars.GetUint(vars.mapSector.Current) + " (map " + vars.GetInt(vars.map.Current) + ")");
-    }
+    if (vars.GetInt(vars.mapSector.Current) != vars.GetInt(vars.mapSector.Old))
+        vars.Log("Changed sector from " + vars.GetInt(vars.mapSector.Old) + " to " + vars.GetInt(vars.mapSector.Current) + " (map " + vars.GetInt(vars.map.Current) + ")");
+
+    if (settings["game_time"])
+        vars.SetTextComponent("IGT", TimeSpan.FromSeconds(vars.GetFloat(vars.gameTime.Current)).ToString(@"hh\:mm\:ss\.fff"));
+
+
+
+    print("Map " + vars.GetInt(vars.map.Current));
+    print("Sector " + vars.GetInt(vars.mapSector.Current));
+    print("Audio Current " + vars.GetInt(vars.audioStatus.Current));
+    print("Audio Old " + vars.GetInt(vars.audioStatus.Old));
+    print("Jabber phase " + vars.GetInt(vars.jabberwockyPhase.Current));
+
+
+
 
     // achievement tracking for 100% runs
     if (settings["achievements"])
     {
         // TODO: Should these be looped over instead of manually checked?
-        // TODO: Should Alice's Armour be included here? jabberwocky0 will occur at the same time
+        // TODO: Should Alice's Armour be included here? jabberwocky0 will occur at nearly the same time
 
         // if (!vars.achievementsDone.Contains("chests") && 
         //     ((vars.chests.Current == 1 && vars.chests.Old == 0) || (vars.SwapEndianness(vars.chests.Current) == 1 && vars.SwapEndianness(vars.chests.Old) == 0))
@@ -532,22 +598,22 @@ split
         //     return settings["enemy_freeze"];
         // }
 
-        if (!vars.splitsDone.Contains("bandersnatch0") && vars.GetUint(vars.mapSector.Current) == 3 && vars.GetInt(vars.playing.Current) == 1 && vars.GetInt(vars.playing.Old) == 4 && vars.GetUint(vars.bandersnatchHealth.Current) == 3)
+        if (!vars.splitsDone.Contains("bandersnatch0") && vars.GetInt(vars.mapSector.Current) == 3 && vars.GetInt(vars.audioStatus.Current) == 1 && vars.GetInt(vars.audioStatus.Old) == 4 && vars.GetInt(vars.bandersnatchHealth.Current) == 3)
         {
             return vars.Split("bandersnatch0");
         }
 
-        if (vars.splitsDone.Contains("bandersnatch0") && !vars.splitsDone.Contains("bandersnatch1") && vars.GetUint(vars.mapSector.Current) == 3 && vars.GetUint(vars.bandersnatchHealth.Current) == 2)
+        if (vars.splitsDone.Contains("bandersnatch0") && !vars.splitsDone.Contains("bandersnatch1") && vars.GetInt(vars.mapSector.Current) == 3 && vars.GetInt(vars.bandersnatchHealth.Current) == 2)
         {
             return vars.Split("bandersnatch1");
         }
 
-        if (vars.splitsDone.Contains("bandersnatch1") && !vars.splitsDone.Contains("bandersnatch2") && vars.GetUint(vars.mapSector.Current) == 3 && vars.GetUint(vars.bandersnatchHealth.Current) == 1)
+        if (vars.splitsDone.Contains("bandersnatch1") && !vars.splitsDone.Contains("bandersnatch2") && vars.GetInt(vars.mapSector.Current) == 3 && vars.GetInt(vars.bandersnatchHealth.Current) == 1)
         {
             return vars.Split("bandersnatch2");
         }
 
-        if (vars.splitsDone.Contains("bandersnatch2") && !vars.splitsDone.Contains("bandersnatch3") && vars.GetUint(vars.mapSector.Current) == 3 && vars.GetUint(vars.bandersnatchHealth.Current) == 1 && vars.GetInt(vars.playing.Current) == 4 && vars.GetInt(vars.playing.Old) == 1)
+        if (vars.splitsDone.Contains("bandersnatch2") && !vars.splitsDone.Contains("bandersnatch3") && vars.GetInt(vars.mapSector.Current) == 3 && vars.GetInt(vars.bandersnatchHealth.Current) == 1 && vars.GetInt(vars.audioStatus.Current) == 4 && vars.GetInt(vars.audioStatus.Old) == 1)
         {
             return vars.Split("bandersnatch3");
         }
@@ -704,22 +770,22 @@ split
     // bandersnatch stables
     if (vars.GetInt(vars.map.Current) == 85)
     {
-        if (!vars.splitsDone.Contains("stayne0") && vars.splitsDone.Contains("ach_rq_potion") && vars.GetFloat(vars.stayneHealth.Current) == 1500f  && vars.GetInt(vars.playing.Current) == 1 && vars.GetInt(vars.playing.Old) == 4)
+        if (!vars.splitsDone.Contains("stayne0") && vars.splitsDone.Contains("ach_rq_potion") && vars.GetFloat(vars.stayneHealth.Current) == 1500f  && vars.GetInt(vars.audioStatus.Current) == 1 && vars.GetInt(vars.audioStatus.Old) == 4)
         {
             return vars.Split("stayne0");
         }
 
-        if (!vars.splitsDone.Contains("stayne1") && vars.splitsDone.Contains("stayne0") && vars.GetFloat(vars.stayneHealth.Current)== 1000f)
+        if (!vars.splitsDone.Contains("stayne1") && vars.splitsDone.Contains("stayne0") && vars.GetFloat(vars.stayneHealth.Current) < 1000f)
         {
             return vars.Split("stayne1");
         }
 
-        if (!vars.splitsDone.Contains("stayne2") && vars.splitsDone.Contains("stayne1") && vars.GetFloat(vars.stayneHealth.Current) == 500f)
+        if (!vars.splitsDone.Contains("stayne2") && vars.splitsDone.Contains("stayne1") && vars.GetFloat(vars.stayneHealth.Current) < 500f)
         {
             return vars.Split("stayne2");
         }
 
-        if (!vars.splitsDone.Contains("stayne3") && vars.splitsDone.Contains("stayne2") && vars.GetFloat(vars.stayneHealth.Current) == 0f && vars.GetInt(vars.playing.Current) == 4)
+        if (!vars.splitsDone.Contains("stayne3") && vars.splitsDone.Contains("stayne2") && vars.GetFloat(vars.stayneHealth.Current) == 0f && vars.GetInt(vars.audioStatus.Current) == 4)
         {
             return vars.Split("stayne3");
         }
@@ -752,27 +818,27 @@ split
         //     return settings["armour"];
         // }
 
-        if (!vars.splitsDone.Contains("jabberwocky0") && vars.GetUint(vars.mapSector.Current) == 2 && vars.GetInt(vars.playing.Current) == 1 && vars.GetInt(vars.playing.Old) == 4 && vars.GetUint(vars.jabberwockyPhase.Current) == 1)
+        if (!vars.splitsDone.Contains("jabberwocky0") && vars.GetInt(vars.mapSector.Current) == 2 && vars.GetInt(vars.audioStatus.Current) == 1 && vars.GetInt(vars.audioStatus.Old) == 4 && vars.GetInt(vars.jabberwockyPhase.Current) == 1)
         {
             return vars.Split("jabberwocky0");
         }
 
-        if (!vars.splitsDone.Contains("jabberwocky1") && vars.splitsDone.Contains("jabberwocky0") && vars.GetUint(vars.mapSector.Current) == 2 && vars.GetUint(vars.jabberwockyPhase.Current) == 2)
+        if (!vars.splitsDone.Contains("jabberwocky1") && vars.splitsDone.Contains("jabberwocky0") && vars.GetInt(vars.mapSector.Current) == 2 && vars.GetInt(vars.jabberwockyPhase.Current) == 2)
         {
             return vars.Split("jabberwocky1");
         }
 
-        if (!vars.splitsDone.Contains("jabberwocky2") && vars.splitsDone.Contains("jabberwocky1") && vars.GetUint(vars.mapSector.Current) == 2 && vars.GetUint(vars.jabberwockyPhase.Current) == 3)
+        if (!vars.splitsDone.Contains("jabberwocky2") && vars.splitsDone.Contains("jabberwocky1") && vars.GetInt(vars.mapSector.Current) == 2 && vars.GetInt(vars.jabberwockyPhase.Current) == 3)
         {
             return vars.Split("jabberwocky2");
         }
 
-        if (!vars.splitsDone.Contains("jabberwocky3") && vars.splitsDone.Contains("jabberwocky2") && vars.GetUint(vars.mapSector.Current) == 2 && vars.GetUint(vars.jabberwockyPhase.Current) == 4)
+        if (!vars.splitsDone.Contains("jabberwocky3") && vars.splitsDone.Contains("jabberwocky2") && vars.GetInt(vars.mapSector.Current) == 2 && vars.GetInt(vars.jabberwockyPhase.Current) == 4)
         {
             return vars.Split("jabberwocky3");
         }
 
-        if (!vars.splitsDone.Contains("jabberwocky4") && vars.splitsDone.Contains("jabberwocky3") && vars.GetUint(vars.mapSector.Current) == 2 && vars.GetUint(vars.jabberwockyPhase.Current) == 4 && vars.GetInt(vars.playing.Old) == 1 && vars.GetInt(vars.playing.Current) == 4)
+        if (!vars.splitsDone.Contains("jabberwocky4") && vars.splitsDone.Contains("jabberwocky3") && vars.GetInt(vars.mapSector.Current) == 2 && vars.GetInt(vars.jabberwockyPhase.Current) == 4 && vars.GetInt(vars.audioStatus.Old) == 1 && vars.GetInt(vars.audioStatus.Current) == 4)
         {
             return vars.Split("jabberwocky4");
         }
@@ -784,7 +850,18 @@ split
 
 reset
 {
-    return vars.GetInt(vars.map.Old) != 0 && vars.GetInt(vars.map.Current) == 0;
+    if (vars.GetInt(vars.map.Old) != 0 && vars.GetInt(vars.map.Current) == 0)
+    {
+        vars.Log("Exiting to Menu - Resetting");
+        return true;
+    }
+}
+
+onStart
+{
+    // include addressess in every log file
+    vars.Log("Mem1 Base Address: 0x" + vars.mem1.ToString("X"));
+    vars.Log("Mem2 Base Address: 0x" + vars.mem2.ToString("X"));
 }
 
 onReset
@@ -804,9 +881,4 @@ shutdown
 isLoading
 {
     return settings["load_removal"] && vars.GetInt(vars.map.Current) == -1;
-}
-
-gameTime
-{
-    return TimeSpan.FromSeconds(vars.GetFloat(vars.gameTime.Current));
 }
