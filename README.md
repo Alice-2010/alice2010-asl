@@ -3,6 +3,7 @@
 ## Features
 - Load Removal (LRT)
 - In-Game Time (IGT) - Should only be used for Full Game runs
+- Dolphin Support (Boss Levels + Phases)
 - Auto start
     - Upon beginning Bandersnatch fight
     - Upon beginning Stayne Fight
@@ -15,7 +16,5 @@
     - Upon returning to the main menu - Possibly not working, requires testing
 
 ### To Add
-- Support for Dolphin Emulator
-    - Unsure if current SwapEndianess function will work with float values
 - Splits
     - Story Objective Splits
