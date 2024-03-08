@@ -487,16 +487,6 @@ update
         vars.SetTextComponent("IGT", TimeSpan.FromSeconds(vars.GetFloat(vars.gameTime.Current)).ToString(@"hh\:mm\:ss\.fff"));
 
 
-
-    print("Map " + vars.GetInt(vars.map.Current));
-    print("Sector " + vars.GetInt(vars.mapSector.Current));
-    print("Audio Current " + vars.GetInt(vars.audioStatus.Current));
-    print("Audio Old " + vars.GetInt(vars.audioStatus.Old));
-    print("Jabber phase " + vars.GetInt(vars.jabberwockyPhase.Current));
-
-
-
-
     // achievement tracking for 100% runs
     if (settings["achievements"])
     {
