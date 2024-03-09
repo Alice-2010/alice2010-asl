@@ -1,7 +1,7 @@
 //========================================================//
 // Alice in Wonderland 2010 AutoSplitter and Load Remover //
 //        Created by https://github.com/DeathHound6       //
-//             Last Updated: 8th March 2024               //
+//             Last Updated: 9th March 2024               //
 //========================================================//
 
 // map - int
@@ -40,7 +40,8 @@ startup
     settings.Add("utility", true, "Utility Options");
     settings.Add("log_file", true, "Debug Log File", "utility");
     settings.Add("load_removal", true, "Load Remover", "utility");
-    settings.Add("game_time", true, "Show IGT (Game Time)", "utility");
+    settings.Add("game_time", false, "Show IGT (Game Time)", "utility");
+    settings.SetToolTip("game_time", "Warning: Can cause lag to LiveSplit timer");
     settings.Add("boss_level", false, "Autostart Boss Levels", "utility");
 
     // Story
@@ -245,13 +246,11 @@ init
         return BitConverter.ToSingle(bytes, 0);
     };
     vars.GetFloat = GetFloat;
-
     Func<int, int[], IntPtr> ReadPointer = (baseAddress, offsets) => {
         byte[] bytes = new byte[] {};
         game.ReadBytes((IntPtr)((long)vars.mem1 + (long)baseAddress), 4, out bytes);
         uint addr = vars.GetUint(BitConverter.ToUInt32(bytes, 0)) - 0x80000000;
         for (int i = 0; i < offsets.Length - 1; i++) {
-            // TODO: TEST THIS LOOP - IT MAY NOT BE NEEDED
             game.ReadBytes((IntPtr)((long)vars.mem1 + (long)addr + (long)offsets[i]), 4, out bytes);
             addr = vars.GetUint(BitConverter.ToUInt32(bytes, 0)) - 0x80000000;
         }
@@ -476,104 +475,104 @@ update
     if (vars.GetInt(vars.map.Current) != vars.GetInt(vars.map.Old))
         vars.Log("Changed map from " + vars.GetInt(vars.map.Old) + " to " + vars.GetInt(vars.map.Current));
 
-    // if on main menu, or entered game from menu, dont run anything else
-    if (vars.GetInt(vars.map.Current) == 0 || vars.GetInt(vars.mapSector.Old) == 0 || vars.GetInt(vars.mapSector.Current) == -1)
-        return false;
-
-    if (vars.GetInt(vars.mapSector.Current) != vars.GetInt(vars.mapSector.Old))
-        vars.Log("Changed sector from " + vars.GetInt(vars.mapSector.Old) + " to " + vars.GetInt(vars.mapSector.Current) + " (map " + vars.GetInt(vars.map.Current) + ")");
-
-    if (settings["game_time"])
-        vars.SetTextComponent("IGT", TimeSpan.FromSeconds(vars.GetFloat(vars.gameTime.Current)).ToString(@"hh\:mm\:ss\.fff"));
-
-
-    // achievement tracking for 100% runs
-    if (settings["achievements"])
+    // if not on main menu, run other checks, otherwise do nothing (allows reset block to run)
+    if (vars.GetInt(vars.map.Current) != 0)
     {
-        // TODO: Should these be looped over instead of manually checked?
-        // TODO: Should Alice's Armour be included here? jabberwocky0 will occur at nearly the same time
+        if (vars.GetInt(vars.mapSector.Current) != vars.GetInt(vars.mapSector.Old))
+            vars.Log("Changed sector from " + vars.GetInt(vars.mapSector.Old) + " to " + vars.GetInt(vars.mapSector.Current) + " (map " + vars.GetInt(vars.map.Current) + ")");
 
-        // if (!vars.achievementsDone.Contains("chests") && 
-        //     ((vars.chests.Current == 1 && vars.chests.Old == 0) || (vars.SwapEndianness(vars.chests.Current) == 1 && vars.SwapEndianness(vars.chests.Old) == 0))
-        // )
-        //     vars.achievementsDone.Add("chests");
+        if (settings["game_time"])
+            vars.SetTextComponent("IGT", TimeSpan.FromSeconds(vars.GetFloat(vars.gameTime.Current)).ToString(@"hh\:mm\:ss\.fff"));
 
-        // if (!vars.achievementsDone.Contains("bchests") && 
-        //     ((vars.bchests.Current == 1 && vars.bchests.Old == 0) || (vars.SwapEndianness(vars.bchests.Current) == 1 && vars.SwapEndianness(vars.bchests.Old) == 0))
-        // )
-        //     vars.achievementsDone.Add("bchests");
 
-        // if (!vars.achievementsDone.Contains("money") && 
-        //     ((vars.money.Current == 1 && vars.money.Old == 0) || (vars.SwapEndianness(vars.money.Current) == 1 && vars.SwapEndianness(vars.money.Old) == 0))
-        // )
-        //     vars.achievementsDone.Add("money");
+        // achievement tracking for 100% runs
+        if (settings["achievements"])
+        {
+            // TODO: Should these be looped over instead of manually checked?
+            // TODO: Should Alice's Armour be included here? jabberwocky0 will occur at nearly the same time
 
-        // if (!vars.achievementsDone.Contains("enemies") && 
-        //     ((vars.enemies.Current == 1 && vars.enemies.Old == 0) || (vars.SwapEndianness(vars.enemies.Current) == 1 && vars.SwapEndianness(vars.enemies.Old) == 0))
-        // )
-        //     vars.achievementsDone.Add("enemies");
+            // if (!vars.achievementsDone.Contains("chests") && 
+            //     ((vars.chests.Current == 1 && vars.chests.Old == 0) || (vars.SwapEndianness(vars.chests.Current) == 1 && vars.SwapEndianness(vars.chests.Old) == 0))
+            // )
+            //     vars.achievementsDone.Add("chests");
 
-        // if (!vars.achievementsDone.Contains("chess") && 
-        //     ((vars.chess.Current == 1 && vars.chess.Old == 0) || (vars.SwapEndianness(vars.chess.Current) == 1 && vars.SwapEndianness(vars.chess.Old) == 0))
-        // )
-        //     vars.achievementsDone.Add("chess");
+            // if (!vars.achievementsDone.Contains("bchests") && 
+            //     ((vars.bchests.Current == 1 && vars.bchests.Old == 0) || (vars.SwapEndianness(vars.bchests.Current) == 1 && vars.SwapEndianness(vars.bchests.Old) == 0))
+            // )
+            //     vars.achievementsDone.Add("bchests");
 
-        // if (!vars.achievementsDone.Contains("upgrades") && 
-        //     ((vars.upgrades.Current == 1 && vars.upgrades.Old == 0) || (vars.SwapEndianness(vars.upgrades.Current) == 1 && vars.SwapEndianness(vars.upgrades.Old) == 0))
-        // )
-        //     vars.achievementsDone.Add("upgrades");
+            // if (!vars.achievementsDone.Contains("money") && 
+            //     ((vars.money.Current == 1 && vars.money.Old == 0) || (vars.SwapEndianness(vars.money.Current) == 1 && vars.SwapEndianness(vars.money.Old) == 0))
+            // )
+            //     vars.achievementsDone.Add("money");
 
-        // if (!vars.achievementsDone.Contains("vegetation") && 
-        //     ((vars.vegetation.Current == 1 && vars.vegetation.Old == 0) || (vars.SwapEndianness(vars.vegetation.Current) == 1 && vars.SwapEndianness(vars.vegetation.Old) == 0))
-        // )
-        //     vars.achievementsDone.Add("vegetation");
+            // if (!vars.achievementsDone.Contains("enemies") && 
+            //     ((vars.enemies.Current == 1 && vars.enemies.Old == 0) || (vars.SwapEndianness(vars.enemies.Current) == 1 && vars.SwapEndianness(vars.enemies.Old) == 0))
+            // )
+            //     vars.achievementsDone.Add("enemies");
 
-        // if (!vars.achievementsDone.Contains("furniture") && 
-        //     ((vars.furniture.Current == 1 && vars.furniture.Old == 0) || (vars.SwapEndianness(vars.furniture.Current) == 1 && vars.SwapEndianness(vars.furniture.Old) == 0))
-        // )
-        //     vars.achievementsDone.Add("furniture");
+            // if (!vars.achievementsDone.Contains("chess") && 
+            //     ((vars.chess.Current == 1 && vars.chess.Old == 0) || (vars.SwapEndianness(vars.chess.Current) == 1 && vars.SwapEndianness(vars.chess.Old) == 0))
+            // )
+            //     vars.achievementsDone.Add("chess");
 
-        // if (!vars.achievementsDone.Contains("mosquitos") && 
-        //     ((vars.mosquitos.Current == 1 && vars.mosquitos.Old == 0) || (vars.SwapEndianness(vars.mosquitos.Current) == 1 && vars.SwapEndianness(vars.mosquitos.Old) == 0))
-        // )
-        //     vars.achievementsDone.Add("mosquitos");
+            // if (!vars.achievementsDone.Contains("upgrades") && 
+            //     ((vars.upgrades.Current == 1 && vars.upgrades.Old == 0) || (vars.SwapEndianness(vars.upgrades.Current) == 1 && vars.SwapEndianness(vars.upgrades.Old) == 0))
+            // )
+            //     vars.achievementsDone.Add("upgrades");
 
-        // if (!vars.achievementsDone.Contains("pigs") && 
-        //     ((vars.pigs.Current == 1 && vars.pigs.Old == 0) || (vars.SwapEndianness(vars.pigs.Current) == 1 && vars.SwapEndianness(vars.pigs.Old) == 0))
-        // )
-        //     vars.achievementsDone.Add("pigs");
+            // if (!vars.achievementsDone.Contains("vegetation") && 
+            //     ((vars.vegetation.Current == 1 && vars.vegetation.Old == 0) || (vars.SwapEndianness(vars.vegetation.Current) == 1 && vars.SwapEndianness(vars.vegetation.Old) == 0))
+            // )
+            //     vars.achievementsDone.Add("vegetation");
 
-        // if (!vars.achievementsDone.Contains("lizards") && 
-        //     ((vars.lizards.Current == 1 && vars.lizards.Old == 0) || (vars.SwapEndianness(vars.lizards.Current) == 1 && vars.SwapEndianness(vars.lizards.Old) == 0))
-        // )
-        //     vars.achievementsDone.Add("lizards");
+            // if (!vars.achievementsDone.Contains("furniture") && 
+            //     ((vars.furniture.Current == 1 && vars.furniture.Old == 0) || (vars.SwapEndianness(vars.furniture.Current) == 1 && vars.SwapEndianness(vars.furniture.Old) == 0))
+            // )
+            //     vars.achievementsDone.Add("furniture");
 
-        // if (!vars.achievementsDone.Contains("birds") && 
-        //     ((vars.birds.Current == 1 && vars.birds.Old == 0) || (vars.SwapEndianness(vars.birds.Current) == 1 && vars.SwapEndianness(vars.birds.Old) == 0))
-        // )
-        //     vars.achievementsDone.Add("birds");
+            // if (!vars.achievementsDone.Contains("mosquitos") && 
+            //     ((vars.mosquitos.Current == 1 && vars.mosquitos.Old == 0) || (vars.SwapEndianness(vars.mosquitos.Current) == 1 && vars.SwapEndianness(vars.mosquitos.Old) == 0))
+            // )
+            //     vars.achievementsDone.Add("mosquitos");
 
-        // if (!vars.achievementsDone.Contains("clocks") && 
-        //     ((vars.clocks.Current == 1 && vars.clocks.Old == 0) || (vars.SwapEndianness(vars.clocks.Current) == 1 && vars.SwapEndianness(vars.clocks.Old) == 0))
-        // )
-        //     vars.achievementsDone.Add("clocks");
+            // if (!vars.achievementsDone.Contains("pigs") && 
+            //     ((vars.pigs.Current == 1 && vars.pigs.Old == 0) || (vars.SwapEndianness(vars.pigs.Current) == 1 && vars.SwapEndianness(vars.pigs.Old) == 0))
+            // )
+            //     vars.achievementsDone.Add("pigs");
 
-        // if (!vars.achievementsDone.Contains("roses") && 
-        //     ((vars.roses.Current == 1 && vars.roses.Old == 0) || (vars.SwapEndianness(vars.roses.Current) == 1 && vars.SwapEndianness(vars.roses.Old) == 0))
-        // )
-        //     vars.achievementsDone.Add("roses");
+            // if (!vars.achievementsDone.Contains("lizards") && 
+            //     ((vars.lizards.Current == 1 && vars.lizards.Old == 0) || (vars.SwapEndianness(vars.lizards.Current) == 1 && vars.SwapEndianness(vars.lizards.Old) == 0))
+            // )
+            //     vars.achievementsDone.Add("lizards");
 
-        // if (!vars.achievementsDone.Contains("statues") && 
-        //     ((vars.statues.Current == 1 && vars.statues.Old == 0) || (vars.SwapEndianness(vars.statues.Current) == 1 && vars.SwapEndianness(vars.statues.Old) == 0))
-        // )
-        //     vars.achievementsDone.Add("statues");
+            // if (!vars.achievementsDone.Contains("birds") && 
+            //     ((vars.birds.Current == 1 && vars.birds.Old == 0) || (vars.SwapEndianness(vars.birds.Current) == 1 && vars.SwapEndianness(vars.birds.Old) == 0))
+            // )
+            //     vars.achievementsDone.Add("birds");
 
-        // if (!vars.achievementsDone.Contains("paintings") && 
-        //     ((vars.paintings.Current == 1 && vars.paintings.Old == 0) || (vars.SwapEndianness(vars.paintings.Current) == 1 && vars.SwapEndianness(vars.paintings.Old) == 0))
-        // )
-        //     vars.achievementsDone.Add("paintings");
+            // if (!vars.achievementsDone.Contains("clocks") && 
+            //     ((vars.clocks.Current == 1 && vars.clocks.Old == 0) || (vars.SwapEndianness(vars.clocks.Current) == 1 && vars.SwapEndianness(vars.clocks.Old) == 0))
+            // )
+            //     vars.achievementsDone.Add("clocks");
 
-        vars.SetTextComponent("Achievements: ", vars.achievementsDone.Count + "/24");
+            // if (!vars.achievementsDone.Contains("roses") && 
+            //     ((vars.roses.Current == 1 && vars.roses.Old == 0) || (vars.SwapEndianness(vars.roses.Current) == 1 && vars.SwapEndianness(vars.roses.Old) == 0))
+            // )
+            //     vars.achievementsDone.Add("roses");
+
+            // if (!vars.achievementsDone.Contains("statues") && 
+            //     ((vars.statues.Current == 1 && vars.statues.Old == 0) || (vars.SwapEndianness(vars.statues.Current) == 1 && vars.SwapEndianness(vars.statues.Old) == 0))
+            // )
+            //     vars.achievementsDone.Add("statues");
+
+            // if (!vars.achievementsDone.Contains("paintings") && 
+            //     ((vars.paintings.Current == 1 && vars.paintings.Old == 0) || (vars.SwapEndianness(vars.paintings.Current) == 1 && vars.SwapEndianness(vars.paintings.Old) == 0))
+            // )
+            //     vars.achievementsDone.Add("paintings");
+
+            vars.SetTextComponent("Achievements: ", vars.achievementsDone.Count + "/24");
+        }
     }
 }
 
@@ -840,7 +839,10 @@ split
 
 reset
 {
-    if (vars.GetInt(vars.map.Old) != 0 && vars.GetInt(vars.map.Current) == 0)
+    print("Map Current " + vars.GetInt(vars.map.Current));
+    print("Map Old " + vars.GetInt(vars.map.Old));
+    // NOTE: IF THE GAME BUGS AND YOU NEED TO SAVE +RELOAD, THIS WILL RESET THE TIMER
+    if (vars.GetInt(vars.map.Old) == -1 && vars.GetInt(vars.map.Current) == 0)
     {
         vars.Log("Exiting to Menu - Resetting");
         return true;
