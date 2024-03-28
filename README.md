@@ -11,6 +11,7 @@
     - Upon beginning Stayne Fight
     - Upon beginning Jabberwocky fight
 - Auto split
+    - Collecting Garden Cake and Cabin Pishsalver
     - Each phase of Bandersnatch fight
     - Each phase of Stayne fight
     - Each phase of Jabberwocky fight
