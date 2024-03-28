@@ -46,6 +46,7 @@ startup
 
     // Story
     settings.Add("garden", true, "Strange Garden");
+    settings.Add("garden_cake", true, "Upel Cake", "garden");
     settings.Add("bandersnatch", true, "Bandersnatch Boss Fight", "garden");
     settings.Add("bandersnatch0", false, "Start of the fight", "bandersnatch");
     settings.Add("bandersnatch1", false, "End of Phase 1", "bandersnatch");
@@ -57,6 +58,7 @@ startup
     settings.Add("hare_house", true, "March Hare House");
 
     settings.Add("cabin", true, "Cabin");
+    settings.Add("cabin_pishsalver", true, "Pishsalver", "cabin");
 
     settings.Add("hightopps", true, "Hightopps");
 
@@ -65,6 +67,7 @@ startup
     settings.Add("moat", true, "Moat");
 
     settings.Add("rq", true, "Salazen Grum - Red Queen");
+    settings.Add("rq_pishsalver", true, "Pishsalver", "rq");
 
     settings.Add("stables", true, "Bandersnatch Stables");
     settings.Add("stayne", true, "Stayne Boss Fight", "stables");
@@ -74,6 +77,8 @@ startup
     settings.Add("stayne3", true, "End of Phase 3 (End of fight)", "stayne");
 
     settings.Add("wq", true, "Marmoreal - White Queen");
+    // TODO: If the bug where Alice stays small happens, do we want to check for and update this?
+    settings.Add("wq_visit", true, "Visit the White Queen", "wq");
 
     settings.Add("frabjous", true, "Frabjous Day");
     settings.Add("jabberwocky", true, "Jabberwocky Boss Fight", "frabjous");
@@ -100,7 +105,7 @@ startup
     // settings.Add("Upgrades_back2vortex", false, "Back to Vortex", "upgrades");
     // settings.Add("upgrades_mctwisp_combo", false, "McTwisp 3 Hit Combo", "upgrades");
     // // mally
-    // settings.Add("Upgrades_attack_speed", false, "2x Attack Speed", "upgrades");
+    // settings.Add("upgrades_attack_speed", false, "2x Attack Speed", "upgrades");
     // settings.Add("upgrades_mally_sweep", false, "Mallymkin Sweep", "upgrades");
     // settings.Add("upgrades_mally_finish", false, "Mallymkin Finishing Move", "upgrades");
     // // hare
@@ -160,8 +165,8 @@ init
 
     if (game.ProcessName == "Dolphin")
     {
-        vars.mem1 = 0x0;
-        vars.mem2 = 0x0;
+        vars.mem1 = IntPtr.Zero;
+        vars.mem2 = IntPtr.Zero;
         foreach (var item in ExtensionMethods.MemoryPages(game, true))
         {
             if (item.Type == MemPageType.MEM_MAPPED && item.AllocationProtect == MemPageProtect.PAGE_READWRITE &&
@@ -175,7 +180,7 @@ init
                 break;
             }
         }
-        if (vars.mem1 == (IntPtr)0x0)
+        if (vars.mem1 == IntPtr.Zero)
             version = "Unknown";
         else
         {
@@ -269,6 +274,9 @@ init
         // vars.charID = new MemoryWatcher<uint>((IntPtr)((int)vars.mem1 + (int)0x7DA583));
         vars.audioStatus = new MemoryWatcher<int>((IntPtr)((long)vars.mem1 + (long)0x7FCA10));
 
+        vars.aliceIDPtr = 0x7DE5D4;
+        vars.aliceIDOffsets = new int[] {0x9D0};
+
         // vars.roundHall = new MemoryWatcher<uint>((IntPtr)((int)vars.mem1 + (int)0x7E2534));
         // vars.findAbsolem = new MemoryWatcher<uint>();
 
@@ -310,6 +318,7 @@ init
         vars.gameTime = new MemoryWatcher<float>(new DeepPointer("Alice.exe", 0x45CF1C, 0x4C, 0x44, 0x10));
         vars.map = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x45CF1C, 0x4C, 0x2BC));
         vars.mapSector = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x45CF1C, 0x4C, 0x18, 0x18));
+        vars.aliceID = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x45CF1C, 0x4C, 0x8, 0x28, 0x9D0));
         // vars.charID = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x44B8A8, 0x90, 0x54, 0x180, 0x13C));
         vars.audioStatus = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x45CF1C, 0x3C, 0xC, 0x0, 0x4, 0x10C, 0x0, 0xC));
 
@@ -401,9 +410,10 @@ start
     }
     else
     {
-        // if (vars.GetUint(vars.roundHall.Old) == 0 && vars.GetUint(vars.roundHall.Current) == 1 && vars.GetInt(vars.map.Current) == 10)
+        // if (vars.GetInt(vars.map.Current) == 10 && vars.GetInt(vars.audioStatus.Current) == 1 && vars.GetInt(vars.audioStatus.Old) == 4)
         // {
-        //     vars.achievementsDone.Add("round_hall");
+        //     vars.LogsClear(vars.logPath);
+        //     vars.Log("Beginning Main Game Run");
         //     return true;
         // }
     }
@@ -411,7 +421,23 @@ start
 
 update
 {
-    if (version != "Steam") {
+    // If this is after the first definition, that means that old will have a value
+    // Store this for after the reassignment of the pointers
+    // NOTE: THESE WILL ONLY BE REASSIGNED FOR DOLPHIN
+    int oldAliceID = -1;
+    float oldStayneHealth = -1f;
+    int oldJabberPhase = -1;
+    if (version != "Steam")
+    {
+        if (((IDictionary<string, object>)vars).ContainsKey("aliceID"))
+            oldAliceID = vars.aliceID.Current;
+        if (((IDictionary<string, object>)vars).ContainsKey("stayneHealth"))
+            oldStayneHealth = vars.stayneHealth.Current;
+        if (((IDictionary<string, object>)vars).ContainsKey("jabberwockyPhase"))
+            oldJabberPhase = vars.jabberwockyPhase.Current;
+
+        // Set the new MemoryWatcher's with the potentially updated pointer values
+        vars.aliceID = new MemoryWatcher<int>(vars.ReadPointer(vars.aliceIDPtr, vars.aliceIDOffsets));
         vars.stayneHealth = new MemoryWatcher<float>(vars.ReadPointer(vars.stayneHealthPtr, vars.stayneHealthPtrOffsets));
         vars.jabberwockyPhase = new MemoryWatcher<int>(vars.ReadPointer(vars.jabberwockyPtr, vars.jabberwockyPtrOffsets));
     }
@@ -419,6 +445,7 @@ update
     vars.gameTime.Update(game);
     vars.map.Update(game);
     vars.mapSector.Update(game);
+    vars.aliceID.Update(game);
     // vars.charID.Update(game);
     vars.audioStatus.Update(game);
 
@@ -470,6 +497,19 @@ update
     vars.bandersnatchHealth.Update(game);
     vars.stayneHealth.Update(game);
     vars.jabberwockyPhase.Update(game);
+
+    // TODO: Do we want to do this? This could have a hit on performance
+    // We need to do this in here after the Update call
+    if (version != "Steam")
+    {
+        // Reassign the old values
+        if (oldAliceID != -1)
+            vars.aliceID.Old = oldAliceID;
+        if (oldStayneHealth != -1f)
+            vars.stayneHealth.Old = oldStayneHealth;
+        if (oldJabberPhase != 1)
+            vars.jabberwockyPhase.Old = oldJabberPhase;
+    }
 
 
     if (vars.GetInt(vars.map.Current) != vars.GetInt(vars.map.Old))
@@ -581,13 +621,18 @@ split
     // garden
     if (vars.GetInt(vars.map.Current) == 20)
     {
+        if (!vars.splitsDone.Contains("garden_cake") && vars.GetInt(vars.aliceID.Current) == 5 && vars.GetInt(vars.aliceID.Old) == 4)
+        {
+            return vars.Split("garden_cake");
+        }
+
         // if (!vars.splitsDone.Contains("enemy_freeze") && ((vars.enemyFreeze.Current == 1 && vars.enemyFreeze.Old == 0) || (vars.SwapEndianness(vars.enemyFreeze.Current) == 1 && vars.SwapEndianness(vars.enemyFreeze.Old) == 0)))
         // {
         //     vars.splitsDone.Add("enemy_freeze");
         //     return settings["enemy_freeze"];
         // }
 
-        if (!vars.splitsDone.Contains("bandersnatch0") && vars.GetInt(vars.mapSector.Current) == 3 && vars.GetInt(vars.audioStatus.Current) == 1 && vars.GetInt(vars.audioStatus.Old) == 4 && vars.GetInt(vars.bandersnatchHealth.Current) == 3)
+        if (!vars.splitsDone.Contains("bandersnatch0") && vars.splitsDone.Contains("garden_cake") && vars.GetInt(vars.mapSector.Current) == 3 && vars.GetInt(vars.audioStatus.Current) == 1 && vars.GetInt(vars.audioStatus.Old) == 4 && vars.GetInt(vars.bandersnatchHealth.Current) == 3)
         {
             return vars.Split("bandersnatch0");
         }
@@ -677,6 +722,13 @@ split
     // cabin
     if (vars.GetInt(vars.map.Current) == 60)
     {
+        // "large" alice is not the same Alice NPC, and does not have it's own id here
+        // "small" alice (entering cabin) -> "normal" alice after pishalver
+        if (!vars.splitsDone.Contains("cabin_pishsalver") && vars.GetInt(vars.aliceID.Current) == 5 && vars.GetInt(vars.aliceID.Old) == 4)
+        {
+            return vars.Split("cabin_pishsalver");
+        }
+
         // if (!vars.splitsDone.Contains("homing") && ((vars.homing.Current == 1 && vars.homing.Old == 0) || (vars.SwapEndianness(vars.homing.Current) == 1 && vars.SwapEndianness(vars.homing.Old) == 0)))
         // {
         //     vars.splitsDone.Add("homing");
@@ -839,8 +891,6 @@ split
 
 reset
 {
-    print("Map Current " + vars.GetInt(vars.map.Current));
-    print("Map Old " + vars.GetInt(vars.map.Old));
     // NOTE: IF THE GAME BUGS AND YOU NEED TO SAVE +RELOAD, THIS WILL RESET THE TIMER
     if (vars.GetInt(vars.map.Old) == -1 && vars.GetInt(vars.map.Current) == 0)
     {
