@@ -1,29 +1,8 @@
 //========================================================//
 // Alice in Wonderland 2010 AutoSplitter and Load Remover //
 //        Created by https://github.com/DeathHound6       //
-//             Last Updated: 9th March 2024               //
+//             Last Updated: 3rd April 2024               //
 //========================================================//
-
-// map - int
-// -1 - loading
-// 0 - menu
-// 10 - round hall
-// 20 - garden
-// 30 - tulgey
-// 40 - hare house
-// 50 - hightopps
-// 60 - cabin
-// 70 - desert
-// 75 - moat
-// 80 - salazen
-// 85 - stables
-// 90 - marmoreal
-// 100 - frabjous
-
-// audioStatus - int
-// 0 - playing audio
-// 1 - not playing audio
-// 4 - playing prerendered cutscene
 
 
 // NOTE: State blocks won't have any pointers
@@ -41,21 +20,26 @@ startup
     settings.Add("log_file", true, "Debug Log File", "utility");
     settings.Add("load_removal", true, "Load Remover", "utility");
     settings.Add("game_time", false, "Show IGT (Game Time)", "utility");
-    settings.SetToolTip("game_time", "Warning: Can cause lag to LiveSplit timer");
     settings.Add("boss_level", false, "Autostart Boss Levels", "utility");
+    settings.Add("achievements", false, "Track completed achievements (for 100%)", "utility");
 
     // Story
     settings.Add("garden", true, "Strange Garden");
-    settings.Add("garden_cake", true, "Upel Cake", "garden");
+    settings.Add("garden_cake", true, "Upelkuchen Cake", "garden");
+    settings.Add("garden_pishsalver", false, "Pishsalver", "garden");
     settings.Add("bandersnatch", true, "Bandersnatch Boss Fight", "garden");
     settings.Add("bandersnatch0", false, "Start of the fight", "bandersnatch");
     settings.Add("bandersnatch1", false, "End of Phase 1", "bandersnatch");
     settings.Add("bandersnatch2", false, "End of Phase 2", "bandersnatch");
     settings.Add("bandersnatch3", true, "End of Phase 3 (End of fight)", "bandersnatch");
+    settings.Add("tweedle_hs", false, "Tweedle Hide and Seek", "garden");
 
     settings.Add("woods", true, "Tulgey Woods");
+    settings.Add("pigs", false, "Green Pigs (Tweedles)", "woods");
 
     settings.Add("hare_house", true, "March Hare House");
+    settings.Add("ach_mhh", true, "Enter the Windmill", "hare_house");
+    settings.Add("tweedle_kite", false, "Tweedle Kite", "hare_house");
 
     settings.Add("cabin", true, "Cabin");
     settings.Add("cabin_pishsalver", true, "Pishsalver", "cabin");
@@ -67,7 +51,8 @@ startup
     settings.Add("moat", true, "Moat");
 
     settings.Add("rq", true, "Salazen Grum - Red Queen");
-    settings.Add("rq_pishsalver", true, "Pishsalver", "rq");
+    settings.Add("ach_rq", false, "Enter Salazen Grum", "rq");
+    settings.Add("ach_rq_potion", true, "Pishsalver", "rq");
 
     settings.Add("stables", true, "Bandersnatch Stables");
     settings.Add("stayne", true, "Stayne Boss Fight", "stables");
@@ -78,7 +63,8 @@ startup
 
     settings.Add("wq", true, "Marmoreal - White Queen");
     // TODO: If the bug where Alice stays small happens, do we want to check for and update this?
-    settings.Add("wq_visit", true, "Visit the White Queen", "wq");
+    // NOTE: Maybe check when loading in between WQ->Tulgey (if WQ visit is done and Alice is small)
+    settings.Add("ach_wq", true, "Visit the White Queen", "wq");
 
     settings.Add("frabjous", true, "Frabjous Day");
     settings.Add("jabberwocky", true, "Jabberwocky Boss Fight", "frabjous");
@@ -87,16 +73,6 @@ startup
     settings.Add("jabberwocky2", false, "End of Phase 2", "jabberwocky");
     settings.Add("jabberwocky3", false, "End of Phase 3", "jabberwocky");
     settings.Add("jabberwocky4", true, "End of Phase 4 (End of fight)", "jabberwocky");
-
-    settings.Add("achievements", false, "Story Achievements");
-    settings.Add("ach_round_hall", false, "Round Hall", "achievements");
-    settings.Add("ach_absolem", false, "Absolem", "achievements");
-    settings.Add("ach_hare_house", false, "March Hare House", "achievements");
-    settings.Add("ach_rq", false, "Salazen Grum", "achievements");
-    settings.Add("ach_rq_potion", false, "Salazen Grum: The Potion", "achievements");
-    settings.Add("ach_stayne", false, "Stayne", "achievements");
-    settings.Add("ach_wq", false, "Marmoreal", "achievements");
-    settings.Add("ach_armour", false, "Alice's Armor", "achievements");
 
     // Upgrades
     // settings.Add("upgrades", false, "Upgrades");
@@ -124,13 +100,32 @@ startup
     // settings.Add("upgrades_extra_life", false, "Extra Life", "upgrades");
     // settings.Add("upgrades_switch_bomb", false, "Switch Bomb", "upgrades");
     // settings.Add("upgrades_multiplier", false, "Impossible Ideas Multiplier", "upgrades");
-}
 
-init
-{
-    vars.logPath = "alice2010.log";
+
+    vars.splitsDone = new List<string>();
+    vars.achievementsDone = new List<string>();
+
+    // SetText taken from Poppy Playtime
+    vars.SetTextComponent = (Action<string, string>)((id, text) => {
+        var textSettings = timer.Layout.Components.Where(x => x.GetType().Name == "TextComponent").Select(x => x.GetType().GetProperty("Settings").GetValue(x, null));
+        var textSetting = textSettings.FirstOrDefault(x => (x.GetType().GetProperty("Text1").GetValue(x, null) as string) == id);
+        if (textSetting == null)
+        {
+            var textComponentAssembly = Assembly.LoadFrom("Components\\LiveSplit.Text.dll");
+            var textComponent = Activator.CreateInstance(textComponentAssembly.GetType("LiveSplit.UI.Components.TextComponent"), timer);
+            timer.Layout.LayoutComponents.Add(new LiveSplit.UI.Components.LayoutComponent("LiveSplit.Text.dll", textComponent as LiveSplit.UI.Components.IComponent));
+
+            textSetting = textComponent.GetType().GetProperty("Settings", BindingFlags.Instance | BindingFlags.Public).GetValue(textComponent, null);
+            textSetting.GetType().GetProperty("Text1").SetValue(textSetting, id);
+        }
+
+        if (textSetting != null)
+            textSetting.GetType().GetProperty("Text2").SetValue(textSetting, text);
+    });
+
     // Log functions taken from https://github.com/VideoGameRoulette/re2-remake-autosplitter
-    Action<string, string> SaveLogs = (filePath, text) => {
+    vars.logPath = "alice2010.log";
+    vars.SaveLogs = (Action<string, string>)((filePath, text) => {
         if (!File.Exists(filePath)) {
             // Create a new file with the specified name
             using (StreamWriter sw = File.CreateText(filePath))
@@ -141,8 +136,12 @@ init
             using (StreamWriter sw = File.AppendText(filePath))
                 sw.WriteLine(text);
         }
-    };
-    Action<string> Log = (text) => {
+    });
+}
+
+init
+{
+    vars.Log = (Action<string>)((text) => {
         string log = "[Debug";
         // NOTE: If the timer value > 0, then show the timer info in log
         if (timer.CurrentPhase != TimerPhase.NotRunning)
@@ -150,19 +149,16 @@ init
         log += "]: " + text;
         print(log);
         if (settings["log_file"])
-            SaveLogs(vars.logPath, log);
-    };
-    vars.Log = Log;
-    Action<string> LogsClear = (filePath) => {
+            vars.SaveLogs(vars.logPath, log);
+    });
+    vars.LogsClear = (Action<string>)((filePath) => {
         if (settings["log_file"])
         {
-            Log("Clearing Logs");
+            vars.Log("Clearing Logs");
             if (File.Exists(filePath))
                 File.WriteAllLines(filePath, new string[0]);
         }
-    };
-    vars.LogsClear = LogsClear;
-
+    });
     if (game.ProcessName == "Dolphin")
     {
         vars.mem1 = IntPtr.Zero;
@@ -198,75 +194,73 @@ init
     else if (game.ProcessName == "Alice")
         version = "Steam";
 
-    vars.splitsDone = new List<string>();
-    vars.achievementsDone = new List<string>();
-
-    // set text taken from Poppy Playtime C2
-    // used here for showing completed achievement count - for 100% runs
-    Action<string, string> SetTextComponent = (id, text) => {
-        var textSettings = timer.Layout.Components.Where(x => x.GetType().Name == "TextComponent").Select(x => x.GetType().GetProperty("Settings").GetValue(x, null));
-        var textSetting = textSettings.FirstOrDefault(x => (x.GetType().GetProperty("Text1").GetValue(x, null) as string) == id);
-        if (textSetting == null)
-        {
-            var textComponentAssembly = Assembly.LoadFrom("Components\\LiveSplit.Text.dll");
-            var textComponent = Activator.CreateInstance(textComponentAssembly.GetType("LiveSplit.UI.Components.TextComponent"), timer);
-            timer.Layout.LayoutComponents.Add(new LiveSplit.UI.Components.LayoutComponent("LiveSplit.Text.dll", textComponent as LiveSplit.UI.Components.IComponent));
-
-            textSetting = textComponent.GetType().GetProperty("Settings", BindingFlags.Instance | BindingFlags.Public).GetValue(textComponent, null);
-            textSetting.GetType().GetProperty("Text1").SetValue(textSetting, id);
-        }
-
-        if (textSetting != null)
-            textSetting.GetType().GetProperty("Text2").SetValue(textSetting, text);
-    };
-    vars.SetTextComponent = SetTextComponent;
-
-    Func<string, bool> Split = (splitName) => {
+    vars.Split = (Func<string, bool>)((splitName) => {
+        vars.Log("Splitting: " + splitName);
         if (vars.splitsDone.Contains(splitName))
             return false;
-        Log("Splitting: " + splitName);
         vars.splitsDone.Add(splitName);
         return settings[splitName];
-    };
-    vars.Split = Split;
+    });
 
-    Func<uint, uint> GetUint = (value) => {
+    // Get Values (with swapped Endianness if needed)
+    vars.GetUint = (Func<uint, uint>)((value) => {
         byte[] bytes = BitConverter.GetBytes(value);
         if (version != "Steam")
             Array.Reverse(bytes);
         return BitConverter.ToUInt32(bytes, 0);
-    };
-    vars.GetUint = GetUint;
-    Func<int, int> GetInt = (value) => {
+    });
+    vars.GetInt = (Func<int, int>)((value) => {
         byte[] bytes = BitConverter.GetBytes(value);
         if (version != "Steam")
             Array.Reverse(bytes);
         return BitConverter.ToInt32(bytes, 0);
-    };
-    vars.GetInt = GetInt;
-    Func<float, float> GetFloat = (value) => {
+    });
+    vars.GetFloat = (Func<float, float>)((value) => {
         byte[] bytes = BitConverter.GetBytes(value);
         if (version != "Steam")
             Array.Reverse(bytes);
         return BitConverter.ToSingle(bytes, 0);
-    };
-    vars.GetFloat = GetFloat;
-    Func<int, int[], IntPtr> ReadPointer = (baseAddress, offsets) => {
-        byte[] bytes = new byte[] {};
-        game.ReadBytes((IntPtr)((long)vars.mem1 + (long)baseAddress), 4, out bytes);
-        uint addr = vars.GetUint(BitConverter.ToUInt32(bytes, 0)) - 0x80000000;
-        for (int i = 0; i < offsets.Length - 1; i++) {
-            game.ReadBytes((IntPtr)((long)vars.mem1 + (long)addr + (long)offsets[i]), 4, out bytes);
-            addr = vars.GetUint(BitConverter.ToUInt32(bytes, 0)) - 0x80000000;
+    });
+    vars.ReadPointer = (Func<IntPtr, int[], IntPtr>)((baseAddress, offsets) => {
+        // Dolphin pointers
+        if (version != "Steam")
+        {
+            byte[] bytes = new byte[] {};
+            game.ReadBytes((IntPtr)((long)vars.mem1 + (long)baseAddress), 4, out bytes);
+            uint addr = vars.GetUint(BitConverter.ToUInt32(bytes, 0)) - 0x80000000;
+            if (offsets.Length > 0)
+            {
+                if (offsets.Length > 1)
+                {
+                    for (int i = 0; i < offsets.Length - 1; i++)
+                    {
+                        game.ReadBytes((IntPtr)((long)vars.mem1 + (long)addr + (int)offsets[i]), 4, out bytes);
+                        addr = vars.GetUint(BitConverter.ToUInt32(bytes, 0)) - 0x80000000;
+                    }
+                }
+                return (IntPtr)((long)vars.mem1 + (long)addr + (int)offsets[offsets.Length - 1]);
+            }
+            return (IntPtr)((long)vars.mem1 + (long)addr);
         }
-        return (IntPtr)((long)vars.mem1 + (long)addr + (long)offsets[offsets.Length - 1]);
-    };
-    vars.ReadPointer = ReadPointer;
+
+        // Steam pointers
+        IntPtr ptr = IntPtr.Zero;
+        game.ReadPointer((IntPtr)((long)baseAddress), false, out ptr);
+        if (offsets.Length > 0)
+        {
+            if (offsets.Length > 1)
+            {
+                for (int i = 0; i < offsets.Length - 1; i++)
+                    game.ReadPointer((IntPtr)((long)ptr + (long)offsets[i]), false, out ptr);
+            }
+            return (IntPtr)((long)ptr + (int)offsets[offsets.Length - 1]);
+        }
+        return ptr;
+    });
 
     if (version.Contains("Wii"))
     {
         // TODO: Possibly split these addresses by PAL/NTSC
-        // convert to BE - doing so when reading Current/Old
         // NOTE CURRENT ADDRESSES ARE FOR PAL REGION
         vars.gameTime = new MemoryWatcher<float>((IntPtr)((long)vars.mem1 + (long)0x61CAE4));
         vars.map = new MemoryWatcher<int>((IntPtr)((long)vars.mem1 + (long)0x77F870));
@@ -274,43 +268,21 @@ init
         // vars.charID = new MemoryWatcher<uint>((IntPtr)((int)vars.mem1 + (int)0x7DA583));
         vars.audioStatus = new MemoryWatcher<int>((IntPtr)((long)vars.mem1 + (long)0x7FCA10));
 
-        vars.aliceIDPtr = 0x7DE5D4;
-        vars.aliceIDOffsets = new int[] {0x9D0};
+        vars.aliceIDPtr = (IntPtr)0x7DE5D4;
+        vars.aliceIDOffsets = new int[] { 0x9D0 };
 
-        // vars.roundHall = new MemoryWatcher<uint>((IntPtr)((int)vars.mem1 + (int)0x7E2534));
-        // vars.findAbsolem = new MemoryWatcher<uint>();
-
-        // vars.vorpal = new MemoryWatcher<uint>();
-
-        // vars.visitWq = new MemoryWatcher<uint>();
-
-        // vars.chests = new MemoryWatcher<uint>();
-        // vars.bchest = new MemoryWatcher<uint>();
-        // vars.money =  new MemoryWatcher<short>((IntPtr)((int)vars.mem1 + (int)0x4524));
-        // vars.enemies = new MemoryWatcher<uint>();
-        // vars.chess = new MemoryWatcher<uint>();
-        // vars.upgrades = new MemoryWatcher<uint>();
-        // vars.vegetation = new MemoryWatcher<short>();
-        // vars.furniture = new MemoryWatcher<short>();
-        // vars.mosquitos = new MemoryWatcher<uint>();
-        // vars.pigs = new MemoryWatcher<uint>();
-        // vars.lizards = new MemoryWatcher<uint>();
-        // vars.birds = new MemoryWatcher<uint>();
-        // vars.clocks = new MemoryWatcher<uint>();
-        // vars.roses = new MemoryWatcher<uint>();
-        // vars.statues = new MemoryWatcher<uint>();
-        // vars.paintings = new MemoryWatcher<uint>();
+        vars.achievementsPtr = (IntPtr)((long)vars.ReadPointer((IntPtr)0x6C4A20, new int[] {}) - (long)vars.mem1);
 
         // Bosses
         // Bandersnatch health from UI values
         vars.bandersnatchHealth = new MemoryWatcher<int>((IntPtr)((long)vars.mem1 + (long)0x7DA380));
         // Stayne is 'enemy group -> enemy 1'
         // pointer from enemygroup to health
-        vars.stayneHealthPtr = 0x6F4FE4;
-        vars.stayneHealthPtrOffsets = new int[]{0x4F8};
+        vars.stayneHealthPtr = (IntPtr)0x6F4FE4;
+        vars.stayneHealthPtrOffsets = new int[]{ 0x4F8 };
         // Jabberwocky Phase is a CKIntegerCounter inside CKSrvCounter service
-        vars.jabberwockyPtr = 0x7762EC;
-        vars.jabberwockyPtrOffsets = new int[] {0x1C, 0x4};
+        vars.jabberwockyPtr = (IntPtr)0x7762EC;
+        vars.jabberwockyPtrOffsets = new int[] { 0x1C, 0x4 };
     }
     else if (version == "Steam")
     {
@@ -323,31 +295,10 @@ init
         vars.audioStatus = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x45CF1C, 0x3C, 0xC, 0x0, 0x4, 0x10C, 0x0, 0xC));
 
         // achievements
-        // vars.roundHall = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x44B8A8, 0x34, 0x44, 0x54, 0x264, 0x1C));
-        // vars.findAbsolem = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x44B8A8, 0x34, 0x44, 0x54, 0x248, 0x1C));
-        // vars.achHareHouse = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x44B8A8, 0x34, 0x44, 0x54, 0x24C, 0x1C));
-        // vars.achRq = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x44B8A8, 0x34, 0x44, 0x54, 0x250, 0x1C));
-        // vars.achRqPotion = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x44B8A8, 0x34, 0x44, 0x54, 0x254, 0x1C));
-        // vars.stayne = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x44B8A8, 0x34, 0x44, 0x54, 0x258, 0x1C));
-        // vars.visitWq = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x44B8A8, 0x34, 0x44, 0x54, 0x25C, 0x1C));
-        // vars.armour = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x44B8A8, 0x34, 0x44, 0x54, 0x260, 0x1C));
-
-        // vars.chests = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x44B8A8, 0x34, 0x44, 0x54, 0x268, 0x1C));
-        // vars.bchests = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x44B8A8, 0x34, 0x44, 0x54, 0x26C, 0x1C));
-        // vars.money = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x44B8A8, 0x34, 0x44, 0x54, 0x270, 0x1C));
-        // vars.enemies = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x44B8A8, 0x34, 0x44, 0x54, 0x274, 0x1C));
-        // vars.chess = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x44B8A8, 0x34, 0x44, 0x54, 0x278, 0x1C));
-        // vars.upgrades = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x44B8A8, 0x34, 0x44, 0x54, 0x27C, 0x1C));
-        // vars.vegetation = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x44B8A8, 0x34, 0x44, 0x54, 0x280, 0x1C));
-        // vars.furniture = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x44B8A8, 0x34, 0x44, 0x54, 0x284, 0x1C));
-        // vars.mosquitos = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x44B8A8, 0x34, 0x44, 0x54, 0x288, 0x1C));
-        // vars.pigs = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x44B8A8, 0x34, 0x44, 0x54, 0x28C, 0x1C));
-        // vars.lizards = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x44B8A8, 0x34, 0x44, 0x54, 0x290, 0x1C));
-        // vars.birds = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x44B8A8, 0x34, 0x44, 0x54, 0x294, 0x1C));
-        // vars.clocks = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x44B8A8, 0x34, 0x44, 0x54, 0x298, 0x1C));
-        // vars.roses = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x44B8A8, 0x34, 0x44, 0x54, 0x29C, 0x1C));
-        // vars.statues = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x44B8A8, 0x34, 0x44, 0x54, 0x2A0, 0x1C));
-        // vars.paintings = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x44B8A8, 0x34, 0x44, 0x54, 0x2A4, 0x1C));
+        IntPtr ptr;
+        // TODO
+        new DeepPointer("Alice.exe", 0x45CF1C, 0x4C, 0x6C, 0x88, 0x0).DerefOffsets(game, out ptr);
+        vars.achievementsPtr = ptr;
 
         // Upgrades
         // vars.extraLife = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x44B8A8, 0x34, 0x44, 0x54, 0x384, 0x1C));
@@ -377,6 +328,37 @@ init
         // Jabberwocky Phase is a CKIntegerCounter inside CKSrvCounter service
         vars.jabberwockyPhase = new MemoryWatcher<uint>(new DeepPointer("Alice.exe", 0x45CF1C, 0x28, 0x58, 0xC, 0x1C, 0x4));
     }
+    // Track the current value for use in splits
+    vars.tweedles = -1;
+    vars.pigs = -1;
+    vars.achievements = new List<string>
+    {
+        "Absolem",
+        "March Hare House",
+        "Salazen Grum",
+        "Salazen Grum: Potion",
+        "Vorpal Sword",
+        "Marmoreal",
+        "Alice's Armor",
+        "Round Hall",
+        "Chests",
+        "Green Pigs",
+        "Impossible Ideas",
+        "Enemies",
+        "Chess Pieces",
+        "Tweedles", // this one is unfinished in game, but still increments on h&s + kite
+        "Vegetation",
+        "Furniture",
+        "Mosquitos",
+        "Big Chests",
+        "Lizard Badgers",
+        "Wading Birds",
+        "Clocks",
+        "Roses",
+        "Fish Statues",
+        "Paintings",
+        "Upgrades"
+    };
 }
 
 start
@@ -410,17 +392,22 @@ start
     }
     else
     {
-        // if (vars.GetInt(vars.map.Current) == 10 && vars.GetInt(vars.audioStatus.Current) == 1 && vars.GetInt(vars.audioStatus.Old) == 4)
-        // {
-        //     vars.LogsClear(vars.logPath);
-        //     vars.Log("Beginning Main Game Run");
-        //     return true;
-        // }
+        // TODO: SHOULD START TIME BE 4 SECONDS FOR THIS OR SHOULD WE USE A DIFFERENT METHOD
+        // check round hall
+        if (vars.achievementsDone.Contains("Round Hall") && vars.GetInt(vars.map.Current) == 10)
+        {
+            vars.LogsClear(vars.logPath);
+            vars.Log("Beginning Main Game Run");
+            return true;
+        }
     }
 }
 
 update
 {
+    // update map at the start for dolphin checks
+    vars.map.Update(game);
+
     // If this is after the first definition, that means that old will have a value
     // Store this for after the reassignment of the pointers
     // NOTE: THESE WILL ONLY BE REASSIGNED FOR DOLPHIN
@@ -438,42 +425,17 @@ update
 
         // Set the new MemoryWatcher's with the potentially updated pointer values
         vars.aliceID = new MemoryWatcher<int>(vars.ReadPointer(vars.aliceIDPtr, vars.aliceIDOffsets));
-        vars.stayneHealth = new MemoryWatcher<float>(vars.ReadPointer(vars.stayneHealthPtr, vars.stayneHealthPtrOffsets));
-        vars.jabberwockyPhase = new MemoryWatcher<int>(vars.ReadPointer(vars.jabberwockyPtr, vars.jabberwockyPtrOffsets));
+        if (vars.GetInt(vars.map.Current) == 85)
+            vars.stayneHealth = new MemoryWatcher<float>(vars.ReadPointer(vars.stayneHealthPtr, vars.stayneHealthPtrOffsets));
+        if (vars.GetInt(vars.map.Current) == 100)
+            vars.jabberwockyPhase = new MemoryWatcher<int>(vars.ReadPointer(vars.jabberwockyPtr, vars.jabberwockyPtrOffsets));
     }
 
     vars.gameTime.Update(game);
-    vars.map.Update(game);
     vars.mapSector.Update(game);
     vars.aliceID.Update(game);
     // vars.charID.Update(game);
     vars.audioStatus.Update(game);
-
-    // vars.roundHall.Update(game);
-    // vars.findAbsolem.Update(game);
-    // vars.achHareHouse.Update(game);
-    // vars.achRq.Update(game);
-    // vars.achRqPotion.Update(game);
-    // vars.stayne.Update(game);
-    // vars.visitWq.Update(game);
-    // vars.armour.Update(game);
-
-    // vars.chests.Update(game);
-    // vars.bchests.Update(game);
-    // vars.money.Update(game);
-    // vars.enemies.Update(game);
-    // vars.chess.Update(game);
-    // vars.upgrades.Update(game);
-    // vars.vegetation.Update(game);
-    // vars.furniture.Update(game);
-    // vars.mosquitos.Update(game);
-    // vars.pigs.Update(game);
-    // vars.lizards.Update(game);
-    // vars.birds.Update(game);
-    // vars.clocks.Update(game);
-    // vars.roses.Update(game);
-    // vars.statues.Update(game);
-    // vars.paintings.Update(game);
 
     // vars.enemyFreeze.Update(game);
     // vars.back2Vortex.Update(game);
@@ -495,8 +457,10 @@ update
     // vars.switchBomb.Update(game);
 
     vars.bandersnatchHealth.Update(game);
-    vars.stayneHealth.Update(game);
-    vars.jabberwockyPhase.Update(game);
+    if (((IDictionary<string, object>)vars).ContainsKey("stayneHealth"))
+        vars.stayneHealth.Update(game);
+    if (((IDictionary<string, object>)vars).ContainsKey("jabberwockyPhase"))
+        vars.jabberwockyPhase.Update(game);
 
     // TODO: Do we want to do this? This could have a hit on performance
     // We need to do this in here after the Update call
@@ -505,9 +469,9 @@ update
         // Reassign the old values
         if (oldAliceID != -1)
             vars.aliceID.Old = oldAliceID;
-        if (oldStayneHealth != -1f)
+        if (((IDictionary<string, object>)vars).ContainsKey("stayneHealth") && oldStayneHealth != -1f)
             vars.stayneHealth.Old = oldStayneHealth;
-        if (oldJabberPhase != 1)
+        if (((IDictionary<string, object>)vars).ContainsKey("jabberwockyPhase") && oldJabberPhase != 1)
             vars.jabberwockyPhase.Old = oldJabberPhase;
     }
 
@@ -526,93 +490,55 @@ update
 
 
         // achievement tracking for 100% runs
-        if (settings["achievements"])
+        if (vars.GetInt(vars.map.Current) != -1)
         {
-            // TODO: Should these be looped over instead of manually checked?
-            // TODO: Should Alice's Armour be included here? jabberwocky0 will occur at nearly the same time
+            for (int i = 0; i < vars.achievements.Count; i++)
+            {
+                string keyName = vars.achievements[i];
+                // Skip tweedle quest check - it's unfinished in game
+                if (keyName == "Tweedles")
+                    continue;
+                // Don't continue checking for achievements that are already complete
+                if (vars.achievementsDone.Contains(keyName))
+                    continue;
 
-            // if (!vars.achievementsDone.Contains("chests") && 
-            //     ((vars.chests.Current == 1 && vars.chests.Old == 0) || (vars.SwapEndianness(vars.chests.Current) == 1 && vars.SwapEndianness(vars.chests.Old) == 0))
-            // )
-            //     vars.achievementsDone.Add("chests");
+                // 'i * 4' is for the array "index"
+                IntPtr currentAddr = vars.ReadPointer((IntPtr)((long)vars.achievementsPtr + (int)(i * 4)), new int[] { 0x18 });
+                IntPtr maxAddr = vars.ReadPointer((IntPtr)((long)vars.achievementsPtr + (int)(i * 4)), new int[] { 0x1C });
+                int currentVal = -1;
+                int maxVal = -1;
+                game.ReadValue<int>(currentAddr, out currentVal);
+                game.ReadValue<int>(maxAddr, out maxVal);
+                currentVal = vars.GetInt(currentVal);
+                maxVal = vars.GetInt(maxVal);
 
-            // if (!vars.achievementsDone.Contains("bchests") && 
-            //     ((vars.bchests.Current == 1 && vars.bchests.Old == 0) || (vars.SwapEndianness(vars.bchests.Current) == 1 && vars.SwapEndianness(vars.bchests.Old) == 0))
-            // )
-            //     vars.achievementsDone.Add("bchests");
+                if (currentVal != -1)
+                {
+                    vars.achievements[keyName] = new int[2] { currentVal, maxVal };
+                    if (currentVal == maxVal)
+                    {
+                        // NOTE: Tweedles will never be marked as completed
+                        vars.Log("Completed Achievement " + keyName);
+                        vars.achievementsDone.Add(keyName);
+                    }
+                    // Set these to use them when checking splits
+                    if (keyName == "Tweedles")
+                        vars.tweedles = currentVal;
+                    else if (keyName == "Green Pigs")
+                        vars.pigs = currentVal;
+                }
+            }
 
-            // if (!vars.achievementsDone.Contains("money") && 
-            //     ((vars.money.Current == 1 && vars.money.Old == 0) || (vars.SwapEndianness(vars.money.Current) == 1 && vars.SwapEndianness(vars.money.Old) == 0))
-            // )
-            //     vars.achievementsDone.Add("money");
-
-            // if (!vars.achievementsDone.Contains("enemies") && 
-            //     ((vars.enemies.Current == 1 && vars.enemies.Old == 0) || (vars.SwapEndianness(vars.enemies.Current) == 1 && vars.SwapEndianness(vars.enemies.Old) == 0))
-            // )
-            //     vars.achievementsDone.Add("enemies");
-
-            // if (!vars.achievementsDone.Contains("chess") && 
-            //     ((vars.chess.Current == 1 && vars.chess.Old == 0) || (vars.SwapEndianness(vars.chess.Current) == 1 && vars.SwapEndianness(vars.chess.Old) == 0))
-            // )
-            //     vars.achievementsDone.Add("chess");
-
-            // if (!vars.achievementsDone.Contains("upgrades") && 
-            //     ((vars.upgrades.Current == 1 && vars.upgrades.Old == 0) || (vars.SwapEndianness(vars.upgrades.Current) == 1 && vars.SwapEndianness(vars.upgrades.Old) == 0))
-            // )
-            //     vars.achievementsDone.Add("upgrades");
-
-            // if (!vars.achievementsDone.Contains("vegetation") && 
-            //     ((vars.vegetation.Current == 1 && vars.vegetation.Old == 0) || (vars.SwapEndianness(vars.vegetation.Current) == 1 && vars.SwapEndianness(vars.vegetation.Old) == 0))
-            // )
-            //     vars.achievementsDone.Add("vegetation");
-
-            // if (!vars.achievementsDone.Contains("furniture") && 
-            //     ((vars.furniture.Current == 1 && vars.furniture.Old == 0) || (vars.SwapEndianness(vars.furniture.Current) == 1 && vars.SwapEndianness(vars.furniture.Old) == 0))
-            // )
-            //     vars.achievementsDone.Add("furniture");
-
-            // if (!vars.achievementsDone.Contains("mosquitos") && 
-            //     ((vars.mosquitos.Current == 1 && vars.mosquitos.Old == 0) || (vars.SwapEndianness(vars.mosquitos.Current) == 1 && vars.SwapEndianness(vars.mosquitos.Old) == 0))
-            // )
-            //     vars.achievementsDone.Add("mosquitos");
-
-            // if (!vars.achievementsDone.Contains("pigs") && 
-            //     ((vars.pigs.Current == 1 && vars.pigs.Old == 0) || (vars.SwapEndianness(vars.pigs.Current) == 1 && vars.SwapEndianness(vars.pigs.Old) == 0))
-            // )
-            //     vars.achievementsDone.Add("pigs");
-
-            // if (!vars.achievementsDone.Contains("lizards") && 
-            //     ((vars.lizards.Current == 1 && vars.lizards.Old == 0) || (vars.SwapEndianness(vars.lizards.Current) == 1 && vars.SwapEndianness(vars.lizards.Old) == 0))
-            // )
-            //     vars.achievementsDone.Add("lizards");
-
-            // if (!vars.achievementsDone.Contains("birds") && 
-            //     ((vars.birds.Current == 1 && vars.birds.Old == 0) || (vars.SwapEndianness(vars.birds.Current) == 1 && vars.SwapEndianness(vars.birds.Old) == 0))
-            // )
-            //     vars.achievementsDone.Add("birds");
-
-            // if (!vars.achievementsDone.Contains("clocks") && 
-            //     ((vars.clocks.Current == 1 && vars.clocks.Old == 0) || (vars.SwapEndianness(vars.clocks.Current) == 1 && vars.SwapEndianness(vars.clocks.Old) == 0))
-            // )
-            //     vars.achievementsDone.Add("clocks");
-
-            // if (!vars.achievementsDone.Contains("roses") && 
-            //     ((vars.roses.Current == 1 && vars.roses.Old == 0) || (vars.SwapEndianness(vars.roses.Current) == 1 && vars.SwapEndianness(vars.roses.Old) == 0))
-            // )
-            //     vars.achievementsDone.Add("roses");
-
-            // if (!vars.achievementsDone.Contains("statues") && 
-            //     ((vars.statues.Current == 1 && vars.statues.Old == 0) || (vars.SwapEndianness(vars.statues.Current) == 1 && vars.SwapEndianness(vars.statues.Old) == 0))
-            // )
-            //     vars.achievementsDone.Add("statues");
-
-            // if (!vars.achievementsDone.Contains("paintings") && 
-            //     ((vars.paintings.Current == 1 && vars.paintings.Old == 0) || (vars.SwapEndianness(vars.paintings.Current) == 1 && vars.SwapEndianness(vars.paintings.Old) == 0))
-            // )
-            //     vars.achievementsDone.Add("paintings");
-
-            vars.SetTextComponent("Achievements: ", vars.achievementsDone.Count + "/24");
+            if (settings["achievements"])
+                vars.SetTextComponent("Achievements: ", vars.achievementsDone.Count + "/24");
         }
+    }
+    else
+    {
+        if (settings["achievements"])
+            vars.SetTextComponent("Achievements: ", "0/24");
+        if (timer.CurrentPhase == TimerPhase.NotRunning)
+            vars.achievementsDone.Clear();
     }
 }
 
@@ -621,18 +547,18 @@ split
     // garden
     if (vars.GetInt(vars.map.Current) == 20)
     {
+        // Story splits
         if (!vars.splitsDone.Contains("garden_cake") && vars.GetInt(vars.aliceID.Current) == 5 && vars.GetInt(vars.aliceID.Old) == 4)
         {
             return vars.Split("garden_cake");
         }
 
-        // if (!vars.splitsDone.Contains("enemy_freeze") && ((vars.enemyFreeze.Current == 1 && vars.enemyFreeze.Old == 0) || (vars.SwapEndianness(vars.enemyFreeze.Current) == 1 && vars.SwapEndianness(vars.enemyFreeze.Old) == 0)))
-        // {
-        //     vars.splitsDone.Add("enemy_freeze");
-        //     return settings["enemy_freeze"];
-        // }
+        if (!vars.splitsDone.Contains("garden_pishsalver") && vars.splitsDone.Contains("garden_cake") && vars.GetInt(vars.aliceID.Current) == 4 && vars.GetInt(vars.aliceID.Old) == 5)
+        {
+            return vars.Split("garden_pishsalver");
+        }
 
-        if (!vars.splitsDone.Contains("bandersnatch0") && vars.splitsDone.Contains("garden_cake") && vars.GetInt(vars.mapSector.Current) == 3 && vars.GetInt(vars.audioStatus.Current) == 1 && vars.GetInt(vars.audioStatus.Old) == 4 && vars.GetInt(vars.bandersnatchHealth.Current) == 3)
+        if (!vars.splitsDone.Contains("bandersnatch0") && vars.splitsDone.Contains("garden_pishsalver") && vars.GetInt(vars.mapSector.Current) == 3 && vars.GetInt(vars.audioStatus.Current) == 1 && vars.GetInt(vars.audioStatus.Old) == 4 && vars.GetInt(vars.bandersnatchHealth.Current) == 3)
         {
             return vars.Split("bandersnatch0");
         }
@@ -652,10 +578,16 @@ split
             return vars.Split("bandersnatch3");
         }
 
-        // if (!vars.splitsDone.Contains("find_absolem") && ((vars.findAbsolem.Current == 1 && vars.findAbsolem.Old == 0) || (vars.SwapEndianness(vars.findAbsolem.Current) == 1 && vars.SwapEndianness(vars.findAbsolem.Old) == 0)))
+        if (!vars.splitsDone.Contains("tweedle_hs") && vars.splitsDone.Contains("bandersnatch3") && vars.tweedles == 1)
+        {
+            return vars.Split("tweedle_hs");
+        }
+
+        // Upgrades collected - optional
+        // if (!vars.splitsDone.Contains("enemy_freeze") && ((vars.enemyFreeze.Current == 1 && vars.enemyFreeze.Old == 0) || (vars.SwapEndianness(vars.enemyFreeze.Current) == 1 && vars.SwapEndianness(vars.enemyFreeze.Old) == 0)))
         // {
-        //     vars.splitsDone.Add("find_absolem");
-        //     return settings["find_absolem"];
+        //     vars.splitsDone.Add("enemy_freeze");
+        //     return settings["enemy_freeze"];
         // }
 
         // if (!vars.splitsDone.Contains("invis") && ((vars.invis.Current == 1 && vars.invis.Old == 0) || (vars.SwapEndianness(vars.invis.Current) == 1 && vars.SwapEndianness(vars.invis.Old) == 0)))
@@ -668,6 +600,13 @@ split
     // tulgey
     if (vars.GetInt(vars.map.Current) == 30)
     {
+        // Story splits
+        if (!vars.splitsDone.Contains("pigs") && vars.splitsDone.Contains("tweedle_hs") && vars.pigs == 4)
+        {
+            return vars.Split("pigs");
+        }
+
+        // Upgrades collected
         // if (!vars.splitsDone.Contains("mally_sweep") && ((vars.mallySweep.Current == 1 && vars.mallySweep.Old == 0) || (vars.SwapEndianness(vars.mallySweep.Current) == 1 && vars.SwapEndianness(vars.mallySweep.Old) == 0)))
         // {
         //     vars.splitsDone.Add("mally_sweep");
@@ -690,12 +629,18 @@ split
     // hare house
     if (vars.GetInt(vars.map.Current) == 40)
     {
-        // if (!vars.splitsDone.Contains("ach_hare_house") && ((vars.achHareHouse.Current == 1 && vars.achHareHouse.Old == 0) || (vars.SwapEndianness(vars.achHareHouse.Current) == 1 && vars.SwapEndianness(vars.achHareHouse.Old) == 0)))
-        // {
-        //     vars.splitsDone.Add("ach_hare_house");
-        //     return settings["ach_hare_house"];
-        // }
+        // Story splits
+        if (!vars.splitsDone.Contains("ach_hare_house") && vars.achievementsDone.Contains("March Hare House"))
+        {
+            return vars.Split("ach_hare_house");
+        }
 
+        if (!vars.splitsDone.Contains("tweedle_kite") && vars.splitsDone.Contains("ach_hare_house") && vars.tweedles == 2)
+        {
+            return vars.Split("tweedle_kite");
+        }
+
+        // Upgrades collected
         // if (!vars.splitsDone.Contains("attack_speed") && ((vars.attackSpeed.Current == 1 && vars.attackSpeed.Old == 0) || (vars.SwapEndianness(vars.attackSpeed.Current) == 1 && vars.SwapEndianness(vars.attackSpeed.Old) == 0)))
         // {
         //     vars.splitsDone.Add("attack_speed");
@@ -712,6 +657,9 @@ split
     // hightopps
     if (vars.GetInt(vars.map.Current) == 50)
     {
+        // Story splits
+
+        // Upgrades collected
         // if (!vars.splitsDone.Contains("push") && ((vars.push.Current == 1 && vars.push.Old == 0) || (vars.SwapEndianness(vars.push.Current) == 1 && vars.SwapEndianness(vars.push.Old) == 0)))
         // {
         //     vars.splitsDone.Add("push");
@@ -722,6 +670,7 @@ split
     // cabin
     if (vars.GetInt(vars.map.Current) == 60)
     {
+        // Story splits
         // "large" alice is not the same Alice NPC, and does not have it's own id here
         // "small" alice (entering cabin) -> "normal" alice after pishalver
         if (!vars.splitsDone.Contains("cabin_pishsalver") && vars.GetInt(vars.aliceID.Current) == 5 && vars.GetInt(vars.aliceID.Old) == 4)
@@ -729,6 +678,7 @@ split
             return vars.Split("cabin_pishsalver");
         }
 
+        // Upgrades collected
         // if (!vars.splitsDone.Contains("homing") && ((vars.homing.Current == 1 && vars.homing.Old == 0) || (vars.SwapEndianness(vars.homing.Current) == 1 && vars.SwapEndianness(vars.homing.Old) == 0)))
         // {
         //     vars.splitsDone.Add("homing");
@@ -751,6 +701,9 @@ split
     // red desert
     if (vars.GetInt(vars.map.Current) == 70)
     {
+        // Story splits
+
+        // Upgrades collected
         // if (!vars.splitsDone.Contains("crush") && ((vars.crush.Current == 1 && vars.crush.Old == 0) || (vars.SwapEndianness(vars.crush.Current) == 1 && vars.SwapEndianness(vars.crush.Old) == 0)))
         // {
         //     vars.splitsDone.Add("crush");
@@ -767,6 +720,9 @@ split
     // moat
     if (vars.GetInt(vars.map.Current) == 75)
     {
+        // Story splits
+
+        // Upgrades collected
         // if (!vars.splitsDone.Contains("switch_bomb") && ((vars.switchBomb.Current == 1 && vars.switchBomb.Old == 0) || (vars.SwapEndianness(vars.switchBomb.Current) == 1 && vars.SwapEndianness(vars.switchBomb.Old) == 0)))
         // {
         //     vars.splitsDone.Add("switch_bomb");
@@ -783,22 +739,22 @@ split
     // salazen grum
     if (vars.GetInt(vars.map.Current) == 80)
     {
-        // if (!vars.splitsDone.Contains("ach_rq") && ((vars.achRq.Current == 1 && vars.achRq.Old == 0) || (vars.SwapEndianness(vars.achRq.Current) == 1 && vars.SwapEndianness(vars.achRq.Old) == 0)))
-        // {
-        //     vars.splitsDone.Add("ach_rq");
-        //     return settings["ach_rq"];
-        // }
+        // Story splits
+        if (!vars.splitsDone.Contains("ach_rq") && vars.achievementsDone.Contains("Salazen Grum"))
+        {
+            return vars.Split("ach_rq");
+        }
 
-        // if (!vars.splitsDone.Contains("ach_rq_potion") && ((vars.achRqPotion.Current == 1 && vars.achRqPotion.Old == 0) || (vars.SwapEndianness(vars.achRqPotion.Current) == 1 && vars.SwapEndianness(vars.achRqPotion.Old) == 0)))
-        // {
-        //     vars.splitsDone.Add("ach_rq_potion");
-        //     return settings["ach_rq_potion"];
-        // }
+        if (!vars.splitsDone.Contains("ach_rq_potion") && vars.achievementsDone.Contains("Salazen Grum: Potion"))
+        {
+            return vars.Split("ach_rq_potion");
+        }
 
+        // Upgrades collected
         // if (!vars.splitsDone.Contains("mally_finish") && ((vars.mallyFinish.Current == 1 && vars.mallyFinish.Old == 0) || (vars.SwapEndianness(vars.mallyFinish.Current) == 1 && vars.SwapEndianness(vars.mallyFinish.Old) == 0)))
         // {
         //     vars.splitsDone.Add("mally_finish");
-        //     return settings["maly_finish"];
+        //     return settings["mally_finish"];
         // }
 
         // if (!vars.splitsDone.Contains("backstab") && ((vars.backstab.Current == 1 && vars.backstab.Old == 0) || (vars.SwapEndianness(vars.backstab.Current) == 1 && vars.SwapEndianness(vars.backstab.Old) == 0)))
@@ -811,6 +767,7 @@ split
     // bandersnatch stables
     if (vars.GetInt(vars.map.Current) == 85)
     {
+        // Story splits
         if (!vars.splitsDone.Contains("stayne0") && vars.splitsDone.Contains("ach_rq_potion") && vars.GetFloat(vars.stayneHealth.Current) == 1500f  && vars.GetInt(vars.audioStatus.Current) == 1 && vars.GetInt(vars.audioStatus.Old) == 4)
         {
             return vars.Split("stayne0");
@@ -835,12 +792,13 @@ split
     // marmoreal
     if (vars.GetInt(vars.map.Current) == 90)
     {
-        // if (!vars.splitsDone.Contains("visit_wq") && ((vars.visitWq.Current == 1 && vars.visitWq.Old == 0) || (vars.SwapEndianness(vars.visitWq.Current) == 1 && vars.SwapEndianness(vars.visitWq.Old) == 0)))
-        // {
-        //     vars.splitsDone.Add("visit_wq");
-        //     return settings["visit_wq"];
-        // }
+        // Story splits
+        if (!vars.splitsDone.Contains("ach_wq") && vars.achievementsDone.Contains("Marmoreal"))
+        {
+            return vars.Split("ach_wq");
+        }
 
+        // Upgrades collected
         // if (!vars.splitsDone.Contains("multiplier") && ((vars.multiplier.Current == 1 && vars.multiplier.Old == 0) || (vars.SwapEndianness(vars.multiplier.Current) == 1 && vars.SwapEndianness(vars.multiplier.Old) == 0)))
         // {
         //     vars.splitsDone.Add("multiplier");
@@ -851,14 +809,7 @@ split
     // frabjous
     if (vars.GetInt(vars.map.Current) == 100)
     {
-        // TODO: Should this split be moved to the `update` block?
-        // if (!vars.splitsDone.Contains("armour") &&
-        //     ((vars.armour.Current == 1 && vars.armour.Old == 0) || (vars.SwapEndianness(vars.armour.Current) == 1 && vars.SwapEndianness(vars.armour.Old) == 0)))
-        // {
-        //     vars.splitsDone.Add("armour");
-        //     return settings["armour"];
-        // }
-
+        // Story splits
         if (!vars.splitsDone.Contains("jabberwocky0") && vars.GetInt(vars.mapSector.Current) == 2 && vars.GetInt(vars.audioStatus.Current) == 1 && vars.GetInt(vars.audioStatus.Old) == 4 && vars.GetInt(vars.jabberwockyPhase.Current) == 1)
         {
             return vars.Split("jabberwocky0");
@@ -885,13 +836,18 @@ split
         }
     }
 
+    if (vars.GetInt(vars.map.Current) != 0 && vars.GetInt(vars.map.Current) != -1)
+    {
+        // TODO: Check Upgrades purchased here
+    }
+
     // no quest triggered
     return false;
 }
 
 reset
 {
-    // NOTE: IF THE GAME BUGS AND YOU NEED TO SAVE +RELOAD, THIS WILL RESET THE TIMER
+    // NOTE: IF THE GAME BUGS AND YOU NEED TO SAVE & RELOAD, THIS WILL RESET THE TIMER
     if (vars.GetInt(vars.map.Old) == -1 && vars.GetInt(vars.map.Current) == 0)
     {
         vars.Log("Exiting to Menu - Resetting");
@@ -901,15 +857,24 @@ reset
 
 onStart
 {
-    // include addressess in every log file
-    vars.Log("Mem1 Base Address: 0x" + vars.mem1.ToString("X"));
-    vars.Log("Mem2 Base Address: 0x" + vars.mem2.ToString("X"));
+    if (version != "Steam")
+    {
+        // include addressess in every log file
+        vars.Log("Mem1 Base Address: 0x" + vars.mem1.ToString("X"));
+        vars.Log("Mem2 Base Address: 0x" + vars.mem2.ToString("X"));
+    }
 }
 
 onReset
 {
     vars.splitsDone.Clear();
     vars.achievementsDone.Clear();
+    if (settings["achievements"])
+        vars.SetTextComponent("Achievements: ", "0/24");
+}
+
+exit
+{
     if (settings["achievements"])
         vars.SetTextComponent("Achievements: ", "0/24");
 }

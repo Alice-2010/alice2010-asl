@@ -1,0 +1,31 @@
+MAP ID - Int
+-  -1 = Loading Screen
+-   0 = Main Menu
+-  10 = Round Hall
+-  20 = Strange Garden
+-  30 = Tulgey Woods
+-  40 = March Hare House
+-  50 = Hightopps
+-  60 = Cabin
+-  70 = Red Desert
+-  75 = Moat
+-  80 = Salazen Grum
+-  85 = Bandersnatch Stables
+-  90 = Marmoreal
+- 100 = Frabjous Day
+
+
+AUDIO STATUS - Int
+- 0 = Playing Audio
+- 1 = Not Playing Audio
+- 4 = Playing Prerendered Cutscene
+
+
+CHARACTER IDS - Int
+- 0 = McTwisp
+- 1 = Mad Hatter
+- 2 = Cheshire Cat
+- 3 = March Hare
+- 4 = Alice (small)
+- 5 = Alice
+- 6 = Mallymkin

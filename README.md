@@ -1,20 +1,44 @@
 # Alice in Wonderland (2010) Autosplitter and Load Remover
 
-## Features
+## Current Features
 - Load Removal (LRT)
+    - Compare against Game Time
 - In-Game Time (IGT)
     - When enabled in settings, will show IGT as a TextComponent on LiveSplit
-    - WARNING: This setting can cause lag to the LiveSplit Timer
+        - Settings option inside "utility" group
+- Achievement Tracking (100% runs)
+    - When enabled in settings, will show IGT as a TextComponent on LiveSplit
+        - Settings option inside "utility" group
 - Dolphin Support (Boss Levels + Phases)
 - Auto start
-    - Upon beginning Bandersnatch fight
+    - Upon beginning Bandersnatch Fight
+        - When "Autostart Boss Levels" setting is Enabled
     - Upon beginning Stayne Fight
-    - Upon beginning Jabberwocky fight
+        - When "Autostart Boss Levels" setting is Enabled
+    - Upon beginning Jabberwocky Fight
+        - When "Autostart Boss Levels" setting is Enabled
+    - Upon starting a new game
+        - When "Autostart Boss Levels" setting is Disabled
 - Auto split
-    - Collecting Garden Cake and Cabin Pishsalver
-    - Each phase of Bandersnatch fight
-    - Each phase of Stayne fight
-    - Each phase of Jabberwocky fight
+    - Strange Garden
+        - Collecting Cake
+        - Collecting Pishsalver
+        - Each phase of Bandersnatch Boss fight
+    - Tulgey Woods
+        - Killing the 4 green pigs
+    - March Hare House
+        - Entering the Windmill
+    - Cabin
+        - Collecting Pishsalver
+    - Salazen Grum
+        - Entering map
+        - Collecting Pishsalver
+    - Bandersnatch Stables
+        - Each phase of Stayne Boss fight
+    - Marmoreal
+        - Visiting the White Queen
+    - Frabjous Day
+        - Each phase of Jabberwocky Boss fight
 - Auto reset
     - Upon returning to the main menu
         - WARNING: If for any reason the runner requires to save and reload the save file, this will also cause a reset
@@ -23,4 +47,6 @@
 - Splits
     - Story Objective Splits
     - Upgrade Pickups and/or Purchases
-- Achievement Tracking
+    - Unlocking March Hare or Mad Hatter (Potentially?)
+        - Cannot check Mally due to Coop runs having Player 2 start as her
+        - Easier way to check for Cheshire is checking map is moat
