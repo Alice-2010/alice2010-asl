@@ -6,6 +6,8 @@
     - When enabled in settings, will show IGT as a TextComponent on LiveSplit
     - WARNING: This setting can cause lag to the LiveSplit Timer
 - Dolphin Support (Boss Levels + Phases)
+    - PAL (European)
+    - NTSC (American)
 - Auto start
     - Upon beginning Bandersnatch fight
     - Upon beginning Stayne Fight

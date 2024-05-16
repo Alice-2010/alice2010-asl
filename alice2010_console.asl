@@ -1,7 +1,7 @@
 //========================================================//
 // Alice in Wonderland 2010 AutoSplitter and Load Remover //
 //        Created by https://github.com/DeathHound6       //
-//             Last Updated: 9th March 2024               //
+//             Last Updated: 16th May 2024                //
 //========================================================//
 
 // map - int
@@ -263,27 +263,20 @@ init
     };
     vars.ReadPointer = ReadPointer;
 
-    if (version.Contains("Wii"))
+    if (version.Contains("PAL"))
     {
-        // TODO: Possibly split these addresses by PAL/NTSC
-        // convert to BE - doing so when reading Current/Old
-        // NOTE CURRENT ADDRESSES ARE FOR PAL REGION
+        // Wii PAL release
         vars.gameTime = new MemoryWatcher<float>((IntPtr)((long)vars.mem1 + (long)0x61CAE4));
         vars.map = new MemoryWatcher<int>((IntPtr)((long)vars.mem1 + (long)0x77F870));
         vars.mapSector = new MemoryWatcher<int>((IntPtr)((long)vars.mem1 + (long)0x77676C));
         // vars.charID = new MemoryWatcher<uint>((IntPtr)((int)vars.mem1 + (int)0x7DA583));
         vars.audioStatus = new MemoryWatcher<int>((IntPtr)((long)vars.mem1 + (long)0x7FCA10));
-
         vars.aliceIDPtr = 0x7DE5D4;
         vars.aliceIDOffsets = new int[] {0x9D0};
-
         // vars.roundHall = new MemoryWatcher<uint>((IntPtr)((int)vars.mem1 + (int)0x7E2534));
         // vars.findAbsolem = new MemoryWatcher<uint>();
-
         // vars.vorpal = new MemoryWatcher<uint>();
-
         // vars.visitWq = new MemoryWatcher<uint>();
-
         // vars.chests = new MemoryWatcher<uint>();
         // vars.bchest = new MemoryWatcher<uint>();
         // vars.money =  new MemoryWatcher<short>((IntPtr)((int)vars.mem1 + (int)0x4524));
@@ -300,8 +293,6 @@ init
         // vars.roses = new MemoryWatcher<uint>();
         // vars.statues = new MemoryWatcher<uint>();
         // vars.paintings = new MemoryWatcher<uint>();
-
-        // Bosses
         // Bandersnatch health from UI values
         vars.bandersnatchHealth = new MemoryWatcher<int>((IntPtr)((long)vars.mem1 + (long)0x7DA380));
         // Stayne is 'enemy group -> enemy 1'
@@ -312,17 +303,31 @@ init
         vars.jabberwockyPtr = 0x7762EC;
         vars.jabberwockyPtrOffsets = new int[] {0x1C, 0x4};
     }
+    else if (version.Contains("NTSC"))
+    {
+        // Wii NTSC release
+        vars.map = new MemoryWatcher<int>((IntPtr)((long)vars.mem1 + (long)0x77F8F0));
+        vars.aliceIDPtr = 0x0;
+        vars.aliceIDOffsets = new int[] {0x0};
+        // Bandersnatch health from UI values
+        vars.bandersnatchHealth = new MemoryWatcher<int>((IntPtr)((long)vars.mem1 + (long)0x0));
+        // Stayne is 'enemy group -> enemy 1'
+        // pointer from enemygroup to health
+        vars.stayneHealthPtr = 0x0;
+        vars.stayneHealthPtrOffsets = new int[]{0x0};
+        // Jabberwocky Phase is a CKIntegerCounter inside CKSrvCounter service
+        vars.jabberwockyPtr = 0x0;
+        vars.jabberwockyPtrOffsets = new int[] {0x0, 0x0};
+    }
     else if (version == "Steam")
     {
-        // TODO: UPDATE POINTERS
+        // Steam release
         vars.gameTime = new MemoryWatcher<float>(new DeepPointer("Alice.exe", 0x45CF1C, 0x4C, 0x44, 0x10));
         vars.map = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x45CF1C, 0x4C, 0x2BC));
         vars.mapSector = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x45CF1C, 0x4C, 0x18, 0x18));
-        vars.aliceID = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x45CF1C, 0x4C, 0x8, 0x28, 0x9D0));
         // vars.charID = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x44B8A8, 0x90, 0x54, 0x180, 0x13C));
         vars.audioStatus = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x45CF1C, 0x3C, 0xC, 0x0, 0x4, 0x10C, 0x0, 0xC));
-
-        // achievements
+        vars.aliceID = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x45CF1C, 0x4C, 0x8, 0x28, 0x9D0));
         // vars.roundHall = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x44B8A8, 0x34, 0x44, 0x54, 0x264, 0x1C));
         // vars.findAbsolem = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x44B8A8, 0x34, 0x44, 0x54, 0x248, 0x1C));
         // vars.achHareHouse = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x44B8A8, 0x34, 0x44, 0x54, 0x24C, 0x1C));
@@ -331,7 +336,6 @@ init
         // vars.stayne = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x44B8A8, 0x34, 0x44, 0x54, 0x258, 0x1C));
         // vars.visitWq = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x44B8A8, 0x34, 0x44, 0x54, 0x25C, 0x1C));
         // vars.armour = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x44B8A8, 0x34, 0x44, 0x54, 0x260, 0x1C));
-
         // vars.chests = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x44B8A8, 0x34, 0x44, 0x54, 0x268, 0x1C));
         // vars.bchests = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x44B8A8, 0x34, 0x44, 0x54, 0x26C, 0x1C));
         // vars.money = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x44B8A8, 0x34, 0x44, 0x54, 0x270, 0x1C));
@@ -348,8 +352,6 @@ init
         // vars.roses = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x44B8A8, 0x34, 0x44, 0x54, 0x29C, 0x1C));
         // vars.statues = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x44B8A8, 0x34, 0x44, 0x54, 0x2A0, 0x1C));
         // vars.paintings = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x44B8A8, 0x34, 0x44, 0x54, 0x2A4, 0x1C));
-
-        // Upgrades
         // vars.extraLife = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x44B8A8, 0x34, 0x44, 0x54, 0x384, 0x1C));
         // vars.multiplier = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x44B8A8, 0x34, 0x44, 0x54, 0x388, 0x1C));
         // vars.switchBomb = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x44B8A8, 0x34, 0x44, 0x54, 0x38C, 0x1C));
@@ -368,8 +370,6 @@ init
         // vars.catCombo = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x44B8A8, 0x34, 0x44, 0x54, 0x3C0, 0x1C));
         // vars.invis = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x44B8A8, 0x34, 0x44, 0x54, 0x3C4, 0x1C));
         // vars.backstab = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x44B8A8, 0x34, 0x44, 0x54, 0x3C8, 0x1C));
-
-        // Bosses
         // Bandersnatch health from UI values
         vars.bandersnatchHealth = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x45CF1C, 0x44, 0x54, 0x15C, 0x1C));
         // Stayne is 'enemy group -> enemy 1' (enemy 1 is 0x58 offset)
