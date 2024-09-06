@@ -315,12 +315,12 @@ init
     else if (version == "Steam")
     {
         // TODO: UPDATE POINTERS
-        vars.gameTime = new MemoryWatcher<float>(new DeepPointer("Alice.exe", 0x45CF1C, 0x4C, 0x44, 0x10));
-        vars.map = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x45CF1C, 0x4C, 0x2BC));
-        vars.mapSector = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x45CF1C, 0x4C, 0x18, 0x18));
-        vars.aliceID = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x45CF1C, 0x4C, 0x8, 0x28, 0x9D0));
+        vars.gameTime = new MemoryWatcher<float>(new DeepPointer("Alice.exe", 0x44B8A8, 0x8C, 0x44, 0x10));
+        vars.map = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x44B8A8, 0x8C, 0x2BC));
+        vars.mapSector = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x44B8A8, 0x8C, 0x18, 0x18));
+        vars.aliceID = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x44B8A8, 0x8C, 0x8, 0x28, 0x9D0));
         // vars.charID = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x44B8A8, 0x90, 0x54, 0x180, 0x13C));
-        vars.audioStatus = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x45CF1C, 0x3C, 0xC, 0x0, 0x4, 0x10C, 0x0, 0xC));
+        vars.audioStatus = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x44B8A8, 0x1C, 0xC, 0x0, 0x4, 0x16C));
 
         // achievements
         // vars.roundHall = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x44B8A8, 0x34, 0x44, 0x54, 0x264, 0x1C));
@@ -371,11 +371,11 @@ init
 
         // Bosses
         // Bandersnatch health from UI values
-        vars.bandersnatchHealth = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x45CF1C, 0x44, 0x54, 0x15C, 0x1C));
+        vars.bandersnatchHealth = new MemoryWatcher<int>(new DeepPointer("Alice.exe", 0x44B8A8, 0x90, 0x54, 0x15C, 0x1C));
         // Stayne is 'enemy group -> enemy 1' (enemy 1 is 0x58 offset)
-        vars.stayneHealth = new MemoryWatcher<float>(new DeepPointer("Alice.exe", 0x45CF1C, 0x4C, 0x4, 0x58, 0x3D0));
+        vars.stayneHealth = new MemoryWatcher<float>(new DeepPointer("Alice.exe", 0x44B8A8, 0x8C, 0x4, 0x58, 0x3D0));
         // Jabberwocky Phase is a CKIntegerCounter inside CKSrvCounter service
-        vars.jabberwockyPhase = new MemoryWatcher<uint>(new DeepPointer("Alice.exe", 0x45CF1C, 0x28, 0x58, 0xC, 0x1C, 0x4));
+        vars.jabberwockyPhase = new MemoryWatcher<uint>(new DeepPointer("Alice.exe", 0x44B8A8, 0x9C, 0xC, 0x1C, 0x4));
     }
 }
 
