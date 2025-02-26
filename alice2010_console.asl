@@ -145,8 +145,11 @@ init
     Action<string> Log = (text) => {
         string log = "[Debug";
         // NOTE: If the timer value > 0, then show the timer info in log
-        if (timer.CurrentPhase != TimerPhase.NotRunning)
-            log += " " + timer.CurrentTime.GameTime.ToString();
+        if (timer.CurrentPhase != TimerPhase.NotRunning) {
+            string gameTime = timer.CurrentTime.GameTime.ToString();
+            if (gameTime != "")
+                log += " " + gameTime;
+        }
         log += "]: " + text;
         print(log);
         if (settings["log_file"])
@@ -254,9 +257,13 @@ init
     Func<int, int[], IntPtr> ReadPointer = (baseAddress, offsets) => {
         byte[] bytes = new byte[] {};
         game.ReadBytes((IntPtr)((long)vars.mem1 + (long)baseAddress), 4, out bytes);
+        if (bytes == null)
+                return IntPtr.Zero;
         uint addr = vars.GetUint(BitConverter.ToUInt32(bytes, 0)) - 0x80000000;
         for (int i = 0; i < offsets.Length - 1; i++) {
             game.ReadBytes((IntPtr)((long)vars.mem1 + (long)addr + (long)offsets[i]), 4, out bytes);
+            if (bytes == null)
+                return IntPtr.Zero;
             addr = vars.GetUint(BitConverter.ToUInt32(bytes, 0)) - 0x80000000;
         }
         return (IntPtr)((long)vars.mem1 + (long)addr + (long)offsets[offsets.Length - 1]);
@@ -384,7 +391,7 @@ start
     if (settings["boss_level"])
     {
         // check bandersnatch
-        if (vars.GetInt(vars.map.Current) == 20 && vars.GetInt(vars.mapSector.Current) == 3 && vars.GetInt(vars.audioStatus.Current) == 1 && vars.GetInt(vars.audioStatus.Old) == 4 && vars.GetInt(vars.bandersnatchHealth.Current) == 3)
+        if (vars.GetInt(vars.map.Current) == 20 && vars.GetInt(vars.audioStatus.Current) == 1 && vars.GetInt(vars.audioStatus.Old) == 4 && vars.GetInt(vars.bandersnatchHealth.Current) == 3)
         {
             vars.LogsClear(vars.logPath);
             vars.Split("bandersnatch0");
@@ -401,7 +408,7 @@ start
         }
 
         // check jabberwocky
-        if (vars.GetInt(vars.map.Current) == 100 && vars.GetInt(vars.mapSector.Current) == 2 && vars.GetInt(vars.audioStatus.Current) == 1 && vars.GetInt(vars.audioStatus.Old) == 4 && vars.GetInt(vars.jabberwockyPhase.Current) == 1)
+        if (vars.GetInt(vars.map.Current) == 100 && vars.GetInt(vars.audioStatus.Current) == 1 && vars.GetInt(vars.audioStatus.Old) == 4 && vars.GetInt(vars.jabberwockyPhase.Current) == 1)
         {
             vars.LogsClear(vars.logPath);
             vars.Split("jabberwocky0");
@@ -632,22 +639,22 @@ split
         //     return settings["enemy_freeze"];
         // }
 
-        if (!vars.splitsDone.Contains("bandersnatch0") && vars.splitsDone.Contains("garden_cake") && vars.GetInt(vars.mapSector.Current) == 3 && vars.GetInt(vars.audioStatus.Current) == 1 && vars.GetInt(vars.audioStatus.Old) == 4 && vars.GetInt(vars.bandersnatchHealth.Current) == 3)
+        if (!vars.splitsDone.Contains("bandersnatch0") && vars.splitsDone.Contains("garden_cake") &&  vars.GetInt(vars.audioStatus.Current) == 1 && vars.GetInt(vars.audioStatus.Old) == 4 && vars.GetInt(vars.bandersnatchHealth.Current) == 3)
         {
             return vars.Split("bandersnatch0");
         }
 
-        if (vars.splitsDone.Contains("bandersnatch0") && !vars.splitsDone.Contains("bandersnatch1") && vars.GetInt(vars.mapSector.Current) == 3 && vars.GetInt(vars.bandersnatchHealth.Current) == 2)
+        if (vars.splitsDone.Contains("bandersnatch0") && !vars.splitsDone.Contains("bandersnatch1") && vars.GetInt(vars.bandersnatchHealth.Current) == 2)
         {
             return vars.Split("bandersnatch1");
         }
 
-        if (vars.splitsDone.Contains("bandersnatch1") && !vars.splitsDone.Contains("bandersnatch2") && vars.GetInt(vars.mapSector.Current) == 3 && vars.GetInt(vars.bandersnatchHealth.Current) == 1)
+        if (vars.splitsDone.Contains("bandersnatch1") && !vars.splitsDone.Contains("bandersnatch2") && vars.GetInt(vars.bandersnatchHealth.Current) == 1)
         {
             return vars.Split("bandersnatch2");
         }
 
-        if (vars.splitsDone.Contains("bandersnatch2") && !vars.splitsDone.Contains("bandersnatch3") && vars.GetInt(vars.mapSector.Current) == 3 && vars.GetInt(vars.bandersnatchHealth.Current) == 1 && vars.GetInt(vars.audioStatus.Current) == 4 && vars.GetInt(vars.audioStatus.Old) == 1)
+        if (vars.splitsDone.Contains("bandersnatch2") && !vars.splitsDone.Contains("bandersnatch3") && vars.GetInt(vars.bandersnatchHealth.Current) == 1 && vars.GetInt(vars.audioStatus.Current) == 4 && vars.GetInt(vars.audioStatus.Old) == 1)
         {
             return vars.Split("bandersnatch3");
         }
@@ -816,12 +823,12 @@ split
             return vars.Split("stayne0");
         }
 
-        if (!vars.splitsDone.Contains("stayne1") && vars.splitsDone.Contains("stayne0") && vars.GetFloat(vars.stayneHealth.Current) < 1000f)
+        if (!vars.splitsDone.Contains("stayne1") && vars.splitsDone.Contains("stayne0") && vars.GetFloat(vars.stayneHealth.Current) <= 1000f)
         {
             return vars.Split("stayne1");
         }
 
-        if (!vars.splitsDone.Contains("stayne2") && vars.splitsDone.Contains("stayne1") && vars.GetFloat(vars.stayneHealth.Current) < 500f)
+        if (!vars.splitsDone.Contains("stayne2") && vars.splitsDone.Contains("stayne1") && vars.GetFloat(vars.stayneHealth.Current) <= 500f)
         {
             return vars.Split("stayne2");
         }
@@ -891,19 +898,47 @@ split
 
 reset
 {
-    // NOTE: IF THE GAME BUGS AND YOU NEED TO SAVE +RELOAD, THIS WILL RESET THE TIMER
-    if (vars.GetInt(vars.map.Old) == -1 && vars.GetInt(vars.map.Current) == 0)
+    if (settings["boss_level"])
     {
-        vars.Log("Exiting to Menu - Resetting");
-        return true;
+        // check bandersnatch
+        if (vars.GetInt(vars.map.Current) == 20 && vars.GetInt(vars.audioStatus.Current) == 4)
+        {
+            vars.Log("Starting New Bandersnatch Run - Resetting");
+            return true;
+        }
+
+        // check stayne
+        if (vars.GetInt(vars.map.Current) == 85 && vars.GetInt(vars.audioStatus.Current) == 4)
+        {
+            vars.Log("Starting New Stayne Run - Resetting");
+            return true;
+        }
+
+        // check jabberwocky
+        if (vars.GetInt(vars.map.Current) == 100 && vars.GetInt(vars.audioStatus.Current) == 4)
+        {
+            vars.Log("Starting New Jabberwocky Run - Resetting");
+            return true;
+        }
+    }
+    else
+    {
+        if (vars.GetInt(vars.map.Current) == 10 && vars.GetInt(vars.audioStatus.Current) == 4)
+        {
+            vars.Log("Starting New Full Game Run - Resetting");
+            return true;
+        }
     }
 }
 
 onStart
 {
-    // include addressess in every log file
-    vars.Log("Mem1 Base Address: 0x" + vars.mem1.ToString("X"));
-    vars.Log("Mem2 Base Address: 0x" + vars.mem2.ToString("X"));
+    if (version.Contains("Wii"))
+    {
+        // include addressess in every log file if playing on Dolphin
+        vars.Log("Mem1 Base Address: 0x" + vars.mem1.ToString("X"));
+        vars.Log("Mem2 Base Address: 0x" + vars.mem2.ToString("X"));
+    }
 }
 
 onReset
